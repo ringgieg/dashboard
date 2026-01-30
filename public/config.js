@@ -6,7 +6,7 @@
  */
 window.APP_CONFIG = {
   // 页面标题（浏览器标签页，可选，留空则使用默认值 "Loki Log Viewer"）
-  pageTitle: '',
+  pageTitle: 'Loki Log Viewer',
 
   // 活动服务 ID（启动时监控哪个服务）
   activeService: 'batch-sync',
