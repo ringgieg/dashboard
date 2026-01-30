@@ -29,6 +29,7 @@
     <div class="log-viewer-content">
       <template v-if="currentTask">
         <div v-if="initialLoading" class="loading-state">
+          <el-icon class="loading-icon"><Loading /></el-icon>
           加载中...
         </div>
 
@@ -56,6 +57,7 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { Loading } from '@element-plus/icons-vue'
 import { queryTaskLogs, filterLogsByLevel } from '../api/loki'
 import { useWsStore } from '../stores/wsStore'
 import { useTaskStore } from '../stores/taskStore'
@@ -290,5 +292,20 @@ onUnmounted(() => {
   color: var(--el-text-color-secondary);
   font-size: 15px;
   font-weight: 500;
+}
+
+.loading-icon {
+  display: inline-block;
+  margin-right: 8px;
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

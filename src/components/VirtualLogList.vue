@@ -77,6 +77,7 @@
 
     <!-- Loading indicator -->
     <div v-if="loading" class="loading-more">
+      <el-icon class="loading-icon"><Loading /></el-icon>
       加载更多...
     </div>
 
@@ -90,7 +91,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ArrowDown, ArrowRight, DocumentCopy } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowRight, DocumentCopy, Loading } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { getConfig } from '../utils/config'
 
@@ -451,6 +452,21 @@ onUnmounted(() => {
   color: var(--el-text-color-secondary);
   font-size: 14px;
   font-weight: 500;
+}
+
+.loading-icon {
+  display: inline-block;
+  margin-right: 8px;
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Expanded Details Section */
