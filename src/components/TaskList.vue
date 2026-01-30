@@ -11,11 +11,14 @@
       />
       <el-button
         size="small"
-        :icon="Refresh"
-        :loading="store.loading"
         @click="refreshTasks"
         class="refresh-button"
-      />
+        :disabled="store.loading"
+      >
+        <el-icon :class="{ 'is-loading': store.loading }">
+          <Refresh />
+        </el-icon>
+      </el-button>
     </div>
 
     <div class="task-list-content" v-loading="store.loading">
@@ -199,6 +202,19 @@ onUnmounted(() => {
 
 .refresh-button {
   flex-shrink: 0;
+}
+
+.refresh-button .is-loading {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .task-list-content {

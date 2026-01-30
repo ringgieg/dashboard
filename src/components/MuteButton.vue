@@ -31,6 +31,18 @@
           <el-icon><Clock /></el-icon>
           <span>静默 2 小时</span>
         </el-dropdown-item>
+        <el-dropdown-item command="240">
+          <el-icon><Clock /></el-icon>
+          <span>静默 4 小时</span>
+        </el-dropdown-item>
+        <el-dropdown-item command="480">
+          <el-icon><Clock /></el-icon>
+          <span>静默 8 小时</span>
+        </el-dropdown-item>
+        <el-dropdown-item command="600">
+          <el-icon><Clock /></el-icon>
+          <span>静默 10 小时</span>
+        </el-dropdown-item>
       </el-dropdown-menu>
     </template>
   </el-dropdown>

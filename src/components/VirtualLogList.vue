@@ -202,12 +202,8 @@ function escapeHtml(text) {
 }
 
 function getTruncatedContent(log) {
-  // If expanded, show full content
-  if (isExpanded(log.id)) {
-    return log.line
-  }
-
-  // Truncate to first 10 lines if not expanded
+  // Always show truncated content (first 10 lines only)
+  // Full content is shown in the expanded "原始日志" section
   const lines = log.line ? log.line.split('\n') : []
   if (lines.length > 10) {
     return lines.slice(0, 10).join('\n')
