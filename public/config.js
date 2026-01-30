@@ -5,17 +5,35 @@
  * It will be served as a static file from the public directory.
  */
 window.APP_CONFIG = {
-  // Default service to monitor
-  defaultService: 'Batch-Sync',
+  // Page title (optional, leave empty to use default "Loki Log Viewer")
+  pageTitle: '',
 
-  // Available services (can be extended)
-  services: ['Batch-Sync', 'Data-Service'],
+  // Application name shown in navbar (optional, leave empty to hide)
+  appName: '',
+
+  // Service to monitor (corresponds to Loki label: service="xxx")
+  service: 'Batch-Sync',
 
   // Default log level filter (empty string = show all)
   defaultLogLevel: '',
 
   // Logs per page
   logsPerPage: 500,
+
+  // Loki API configuration
+  loki: {
+    // API base path (default: '/loki/api/v1')
+    apiBasePath: '/loki/api/v1',
+
+    // WebSocket settings (optional, leave empty for auto-detection)
+    wsProtocol: '',  // 'ws' or 'wss', auto-detect if empty
+    wsHost: ''       // hostname:port, use window.location.host if empty
+  },
+
+  // Routing configuration
+  routing: {
+    basePath: '/logs'  // Base path for task routes (e.g., /logs/:taskName)
+  },
 
   // Virtual scroll settings
   virtualScroll: {
@@ -27,7 +45,8 @@ window.APP_CONFIG = {
   // WebSocket settings
   websocket: {
     maxReconnectAttempts: 5,
-    reconnectDelay: 3000
+    reconnectDelay: 3000,
+    initializationDelay: 2000  // Delay before monitoring starts (milliseconds)
   },
 
   // Alert settings

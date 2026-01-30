@@ -4,10 +4,19 @@
  */
 
 const defaultConfig = {
-  defaultService: 'Batch-Sync',
-  services: ['Batch-Sync', 'Data-Service'],
+  pageTitle: '',
+  appName: '',
+  service: 'Batch-Sync',
   defaultLogLevel: '',
   logsPerPage: 500,
+  loki: {
+    apiBasePath: '/loki/api/v1',
+    wsProtocol: '',
+    wsHost: ''
+  },
+  routing: {
+    basePath: '/logs'
+  },
   virtualScroll: {
     estimatedItemHeight: 60,
     bufferSize: 10,
@@ -15,7 +24,8 @@ const defaultConfig = {
   },
   websocket: {
     maxReconnectAttempts: 5,
-    reconnectDelay: 3000
+    reconnectDelay: 3000,
+    initializationDelay: 2000
   },
   alert: {
     newLogHighlightDuration: 3000

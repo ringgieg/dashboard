@@ -76,7 +76,7 @@ const nextCursor = ref(null)
 const selectedLevel = ref(getConfig('defaultLogLevel', ''))
 
 // Get service name from config
-const serviceName = getConfig('defaultService', 'Batch-Sync')
+const serviceName = getConfig('service', 'Batch-Sync')
 const logsPerPage = getConfig('logsPerPage', 500)
 const newLogHighlightDuration = getConfig('alert.newLogHighlightDuration', 3000)
 

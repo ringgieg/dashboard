@@ -1,16 +1,19 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { getConfig } from '../utils/config'
+
+const basePath = getConfig('routing.basePath', '/logs')
 
 const routes = [
   {
     path: '/',
-    redirect: '/batch-sync'
+    redirect: basePath
   },
   {
-    path: '/batch-sync',
+    path: basePath,
     name: 'batch-sync'
   },
   {
-    path: '/batch-sync/:taskName',
+    path: `${basePath}/:taskName`,
     name: 'batch-sync-task'
   }
 ]

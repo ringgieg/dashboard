@@ -77,6 +77,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useTaskStore } from '../stores/taskStore'
 import { useWsStore } from '../stores/wsStore'
+import { getConfig } from '../utils/config'
 import { Search, Refresh } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -122,7 +123,8 @@ function getTaskIconClass(task) {
 function selectTask(taskName) {
   // Clear unread alerts when entering task page
   store.clearUnreadAlerts(taskName)
-  router.push(`/batch-sync/${taskName}`)
+  const basePath = getConfig('routing.basePath', '/logs')
+  router.push(`${basePath}/${taskName}`)
 }
 
 function refreshTasks() {

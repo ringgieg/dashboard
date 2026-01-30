@@ -1,9 +1,16 @@
 import axios from 'axios'
+import { getConfig } from '../utils/config'
 
 // Use nginx proxy for WebSocket connections
 // Automatically uses wss:// for HTTPS and ws:// for HTTP
-const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-const LOKI_WS_URL = `${protocol}//${window.location.host}`
+function getWebSocketUrl() {
+  const wsProtocol = getConfig('loki.wsProtocol') ||
+    (window.location.protocol === 'https:' ? 'wss' : 'ws')
+  const wsHost = getConfig('loki.wsHost') || window.location.host
+  return `${wsProtocol}://${wsHost}`
+}
+
+const LOKI_API_BASE = getConfig('loki.apiBasePath', '/loki/api/v1')
 
 // Request queue to limit concurrent requests
 let pendingRequest = null
@@ -66,7 +73,7 @@ export async function queryLogsWithCursor(query, options = {}) {
   }
 
   const requestFn = async () => {
-    const response = await axios.get('/loki/api/v1/query_range', { params })
+    const response = await axios.get(`${LOKI_API_BASE}/query_range`, { params })
     return response
   }
 
@@ -107,7 +114,7 @@ export function tailLogs(query, callbacks = {}) {
     limit: '100'
   })
 
-  const wsUrl = `${LOKI_WS_URL}/loki/api/v1/tail?${params.toString()}`
+  const wsUrl = `${getWebSocketUrl()}${LOKI_API_BASE}/tail?${params.toString()}`
 
   let ws = null
   let reconnectAttempts = 0
@@ -229,7 +236,7 @@ function parseStreamData(streams) {
 
 export async function getLabelValues(labelName) {
   try {
-    const response = await axios.get(`/loki/api/v1/label/${labelName}/values`)
+    const response = await axios.get(`${LOKI_API_BASE}/label/${labelName}/values`)
     return response.data.data || []
   } catch (error) {
     console.error(`Error getting label values for ${labelName}:`, error)

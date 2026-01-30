@@ -17,24 +17,24 @@ describe('config.js', () => {
   describe('getConfig()', () => {
     it('should return entire config when path is empty', () => {
       window.APP_CONFIG = {
-        defaultService: 'Test-Service',
+        service: 'Test-Service',
         logsPerPage: 1000
       }
 
       const config = getConfig()
       expect(config).toEqual({
-        defaultService: 'Test-Service',
+        service: 'Test-Service',
         logsPerPage: 1000
       })
     })
 
     it('should return top-level config value', () => {
       window.APP_CONFIG = {
-        defaultService: 'Batch-Sync',
+        service: 'Batch-Sync',
         logsPerPage: 500
       }
 
-      expect(getConfig('defaultService')).toBe('Batch-Sync')
+      expect(getConfig('service')).toBe('Batch-Sync')
       expect(getConfig('logsPerPage')).toBe(500)
     })
 
@@ -64,7 +64,7 @@ describe('config.js', () => {
 
     it('should return fallback value when path does not exist', () => {
       window.APP_CONFIG = {
-        defaultService: 'Batch-Sync'
+        service: 'Batch-Sync'
       }
 
       expect(getConfig('nonexistent', 'fallback')).toBe('fallback')
@@ -74,24 +74,24 @@ describe('config.js', () => {
     it('should return default config value when window.APP_CONFIG is undefined', () => {
       window.APP_CONFIG = undefined
 
-      expect(getConfig('defaultService')).toBe('Batch-Sync')
+      expect(getConfig('service')).toBe('Batch-Sync')
       expect(getConfig('logsPerPage')).toBe(500)
       expect(getConfig('websocket.maxReconnectAttempts')).toBe(5)
     })
 
     it('should prioritize window.APP_CONFIG over default config', () => {
       window.APP_CONFIG = {
-        defaultService: 'Custom-Service',
+        service: 'Custom-Service',
         logsPerPage: 1000
       }
 
-      expect(getConfig('defaultService')).toBe('Custom-Service')
+      expect(getConfig('service')).toBe('Custom-Service')
       expect(getConfig('logsPerPage')).toBe(1000)
     })
 
     it('should handle missing intermediate keys gracefully', () => {
       window.APP_CONFIG = {
-        defaultService: 'Batch-Sync'
+        service: 'Batch-Sync'
       }
 
       expect(getConfig('websocket.maxReconnectAttempts', 10)).toBe(10)
@@ -99,7 +99,7 @@ describe('config.js', () => {
 
     it('should return undefined when no fallback provided for missing key', () => {
       window.APP_CONFIG = {
-        defaultService: 'Batch-Sync'
+        service: 'Batch-Sync'
       }
 
       expect(getConfig('nonexistent')).toBeUndefined()
@@ -107,11 +107,27 @@ describe('config.js', () => {
 
     it('should return null when config value is explicitly null', () => {
       window.APP_CONFIG = {
-        defaultService: null
+        service: null
       }
 
       // null is a valid config value, different from "not set"
-      expect(getConfig('defaultService', 'fallback')).toBe(null)
+      expect(getConfig('service', 'fallback')).toBe(null)
+    })
+
+    it('should support new config structure', () => {
+      window.APP_CONFIG = {
+        pageTitle: 'My Log Viewer',
+        appName: 'Log Monitor',
+        service: 'Data-Service',
+        routing: {
+          basePath: '/logs'
+        }
+      }
+
+      expect(getConfig('pageTitle')).toBe('My Log Viewer')
+      expect(getConfig('appName')).toBe('Log Monitor')
+      expect(getConfig('service')).toBe('Data-Service')
+      expect(getConfig('routing.basePath')).toBe('/logs')
     })
   })
 })

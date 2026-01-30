@@ -1,6 +1,6 @@
 <template>
   <div class="navbar">
-    <span class="service-name">Batch-Sync</span>
+    <span class="service-name">{{ serviceName }}</span>
 
     <div class="navbar-actions">
       <el-dropdown @command="handleMuteCommand" trigger="click">
@@ -37,9 +37,12 @@
 
 <script setup>
 import { useAlertStore } from '../stores/alertStore'
+import { getConfig } from '../utils/config'
 import { Bell } from '@element-plus/icons-vue'
 
 const alertStore = useAlertStore()
+// Show appName if configured, otherwise show service name
+const serviceName = getConfig('appName') || getConfig('service', 'Batch-Sync')
 
 function handleMuteCommand(minutes) {
   const min = parseInt(minutes, 10)

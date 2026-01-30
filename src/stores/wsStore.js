@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { tailLogs, buildTaskQuery } from '../api/loki'
 import { useAlertStore } from './alertStore'
 import { useTaskStore } from './taskStore'
+import { getConfig } from '../utils/config'
 
 export const useWsStore = defineStore('ws', () => {
   // Connection state
@@ -24,7 +25,7 @@ export const useWsStore = defineStore('ws', () => {
   let isInitializing = true
 
   /**
-   * Start the WebSocket connection for entire batch-sync service
+   * Start the WebSocket connection for the configured service
    */
   function connect() {
     if (wsController) return
@@ -36,8 +37,9 @@ export const useWsStore = defineStore('ws', () => {
     // Set initialization flag
     isInitializing = true
 
-    // Query for all batch-sync logs (no task_name filter)
-    const query = buildTaskQuery(null, { service: 'Batch-Sync' })
+    // Query for all logs of the configured service (no task_name filter)
+    const serviceName = getConfig('service', 'Batch-Sync')
+    const query = buildTaskQuery(null, { service: serviceName })
 
     wsController = tailLogs(query, {
       onLog: (logs) => {
@@ -55,7 +57,8 @@ export const useWsStore = defineStore('ws', () => {
 
             // Increment unread count if not viewing this task
             const currentPath = window.location.pathname
-            const taskPath = `/batch-sync/${taskName}`
+            const basePath = getConfig('routing.basePath', '/logs')
+            const taskPath = `${basePath}/${taskName}`
             if (currentPath !== taskPath) {
               taskStore.incrementUnreadAlerts(taskName)
               console.log(`Unread alert count for ${taskName}:`, taskStore.getUnreadAlertCount(taskName))
@@ -68,20 +71,23 @@ export const useWsStore = defineStore('ws', () => {
       onOpen: () => {
         isConnected.value = true
         hadConnection = true
-        console.log('WebSocket connected to batch-sync service')
+        const serviceName = getConfig('service', 'Batch-Sync')
+        console.log(`WebSocket connected to ${serviceName} service`)
         // Remove disconnect alert when reconnected
         alertStore.removeAlertReason('disconnect')
 
         // Delay marking initialization as complete to allow initial historical logs to load
         // This prevents false alerts from historical ERROR logs on page load
+        const delay = getConfig('websocket.initializationDelay', 2000)
         setTimeout(() => {
           isInitializing = false
           console.log('Initialization complete, now monitoring for new errors')
-        }, 2000)
+        }, delay)
       },
       onClose: () => {
         isConnected.value = false
-        console.log('WebSocket disconnected from batch-sync service, hadConnection:', hadConnection)
+        const serviceName = getConfig('service', 'Batch-Sync')
+        console.log(`WebSocket disconnected from ${serviceName} service, hadConnection:`, hadConnection)
         // Trigger disconnect alert only if we had a connection before
         if (hadConnection) {
           console.log('Triggering disconnect alert')

@@ -9,6 +9,12 @@
   <div id="app"></div>
   <!-- Runtime configuration - can be modified after build -->
   <script src="/config.js"></script>
+  <script>
+    // Set dynamic title from config (optional)
+    if (window.APP_CONFIG && window.APP_CONFIG.pageTitle) {
+      document.title = window.APP_CONFIG.pageTitle
+    }
+  </script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
