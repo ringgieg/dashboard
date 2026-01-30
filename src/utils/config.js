@@ -14,6 +14,10 @@ const defaultConfig = {
         apiBasePath: '/loki/api/v1',
         wsProtocol: '',
         wsHost: '',
+        tailLimit: 100,
+        tailDelayFor: '0',
+        maxRetries: 3,
+        retryBaseDelay: 1000,
         fixedLabels: {
           job: 'tasks',
           service: 'Batch-Sync'
@@ -28,10 +32,20 @@ const defaultConfig = {
         initializationDelay: 2000
       },
       alert: {
+        level: 'ERROR',
         newLogHighlightDuration: 3000
       },
       query: {
         defaultTimeRangeDays: 7
+      },
+      logLevels: {
+        order: ['ERROR', 'WARN', 'INFO', 'DEBUG'],
+        mapping: {
+          'ERROR': ['ERROR'],
+          'WARN': ['ERROR', 'WARN'],
+          'INFO': ['ERROR', 'WARN', 'INFO'],
+          'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
+        }
       }
     },
     {
@@ -41,6 +55,10 @@ const defaultConfig = {
         apiBasePath: '/loki/api/v1',
         wsProtocol: '',
         wsHost: '',
+        tailLimit: 100,
+        tailDelayFor: '0',
+        maxRetries: 3,
+        retryBaseDelay: 1000,
         fixedLabels: {
           job: 'api',
           service: 'Data-Service'
@@ -55,6 +73,7 @@ const defaultConfig = {
         initializationDelay: 2000
       },
       alert: {
+        level: 'ERROR',
         newLogHighlightDuration: 3000
       },
       query: {
@@ -62,9 +81,6 @@ const defaultConfig = {
       }
     }
   ],
-  routing: {
-    basePath: '/logs'
-  },
   virtualScroll: {
     estimatedItemHeight: 60,
     bufferSize: 10,
@@ -164,12 +180,23 @@ export function getCurrentServiceId() {
 
   // Validate activeService exists in services array
   const services = config.services || []
+
+  // Check for empty services array
+  if (services.length === 0) {
+    console.error('[Config] No services configured! Please check your configuration.')
+    return null
+  }
+
   if (activeService && services.some(s => s.id === activeService)) {
     return activeService
   }
 
   // Fallback to first service
-  return services[0]?.id || 'batch-sync'
+  const firstServiceId = services[0]?.id
+  if (firstServiceId) {
+    console.warn(`[Config] Active service "${activeService}" not found, using first service: ${firstServiceId}`)
+  }
+  return firstServiceId || null
 }
 
 /**

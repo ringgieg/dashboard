@@ -41,7 +41,6 @@ import { useRouter } from 'vue-router'
 import { useServiceStore } from '../stores/serviceStore'
 import { useWsStore } from '../stores/wsStore'
 import { useTaskStore } from '../stores/taskStore'
-import { getConfig } from '../utils/config'
 import { Folder, ArrowDown } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -66,8 +65,7 @@ async function handleServiceSwitch(serviceId) {
   taskStore.clearTasks()
 
   // 4. Navigate to new service route
-  const basePath = getConfig('routing.basePath', '/logs')
-  await router.push(`${basePath}/${serviceId}`)
+  await router.push(`/logs/${serviceId}`)
 
   // 5. Reload tasks for new service
   await taskStore.loadTasks()

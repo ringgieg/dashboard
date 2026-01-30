@@ -12,22 +12,33 @@ function getWebSocketUrl() {
 
 const LOKI_API_BASE = getConfig('loki.apiBasePath', '/loki/api/v1')
 
-// Request queue to limit concurrent requests
-let pendingRequest = null
+// Request queue to limit concurrent requests (Map by query key)
+const pendingRequests = new Map()
+
+// Log ID counter for unique IDs (prevents Math.random() collisions)
+let logIdCounter = 0
 
 /**
  * Retry wrapper with exponential backoff
+ * Reads retry settings from current service config
  */
-async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
-  for (let i = 0; i < maxRetries; i++) {
+async function retryWithBackoff(fn, maxRetries = null, baseDelay = null) {
+  // Get retry settings from config or use defaults
+  const configMaxRetries = getCurrentServiceConfig('loki.maxRetries', 3)
+  const configBaseDelay = getCurrentServiceConfig('loki.retryBaseDelay', 1000)
+
+  const finalMaxRetries = maxRetries ?? configMaxRetries
+  const finalBaseDelay = baseDelay ?? configBaseDelay
+
+  for (let i = 0; i < finalMaxRetries; i++) {
     try {
       return await fn()
     } catch (error) {
       const isTooManyRequests = error.response?.status === 429 ||
         error.message?.includes('too many outstanding requests')
 
-      if (isTooManyRequests && i < maxRetries - 1) {
-        const delay = baseDelay * Math.pow(2, i)
+      if (isTooManyRequests && i < finalMaxRetries - 1) {
+        const delay = finalBaseDelay * Math.pow(2, i)
         console.log(`[Loki] Too many requests, retrying in ${delay}ms...`)
         await new Promise(resolve => setTimeout(resolve, delay))
       } else {
@@ -66,10 +77,13 @@ export async function queryLogsWithCursor(query, options = {}) {
     params.end = now.toString()
   }
 
-  // Wait for any pending request to complete
-  if (pendingRequest) {
+  // Create unique key for this query to support concurrent requests
+  const requestKey = `${query}-${cursor || 'initial'}-${direction}`
+
+  // Wait for any pending request with the same key to complete
+  if (pendingRequests.has(requestKey)) {
     try {
-      await pendingRequest
+      await pendingRequests.get(requestKey)
     } catch (e) {
       // Ignore errors from previous request
     }
@@ -81,9 +95,10 @@ export async function queryLogsWithCursor(query, options = {}) {
   }
 
   try {
-    pendingRequest = retryWithBackoff(requestFn)
-    const response = await pendingRequest
-    pendingRequest = null
+    const currentRequest = retryWithBackoff(requestFn)
+    pendingRequests.set(requestKey, currentRequest)
+    const response = await currentRequest
+    pendingRequests.delete(requestKey)
 
     const result = parseLogResponse(response.data, direction)
 
@@ -99,7 +114,7 @@ export async function queryLogsWithCursor(query, options = {}) {
       hasMore: result.logs.length >= limit
     }
   } catch (error) {
-    pendingRequest = null
+    pendingRequests.delete(requestKey)
     console.error('Error querying logs with cursor:', error)
     throw error
   }
@@ -111,10 +126,14 @@ export async function queryLogsWithCursor(query, options = {}) {
 export function tailLogs(query, callbacks = {}) {
   const { onLog, onError, onClose, onOpen } = callbacks
 
+  // Get tail parameters from config
+  const tailLimit = getCurrentServiceConfig('loki.tailLimit', 100)
+  const tailDelayFor = getCurrentServiceConfig('loki.tailDelayFor', '0')
+
   const params = new URLSearchParams({
     query,
-    delay_for: '0',
-    limit: '100'
+    delay_for: tailDelayFor,
+    limit: String(tailLimit)
   })
 
   const wsUrl = `${getWebSocketUrl()}${LOKI_API_BASE}/tail?${params.toString()}`
@@ -124,8 +143,8 @@ export function tailLogs(query, callbacks = {}) {
   let reconnectTimeout = null
   let isManualClose = false
   let isConnecting = false
-  const maxReconnectAttempts = 5
-  const reconnectDelay = 3000
+  const maxReconnectAttempts = getCurrentServiceConfig('websocket.maxReconnectAttempts', 5)
+  const reconnectDelay = getCurrentServiceConfig('websocket.reconnectDelay', 3000)
 
   function cleanupWebSocket() {
     if (ws) {
@@ -226,7 +245,7 @@ function parseStreamData(streams) {
     const labels = stream.stream || {}
     for (const [timestamp, line] of (stream.values || [])) {
       logs.push({
-        id: `${timestamp}-${Math.random().toString(36).substring(2, 11)}`,
+        id: `${timestamp}-${++logIdCounter}`,
         timestamp: parseInt(timestamp, 10) / 1000000,
         timestampNano: parseInt(timestamp, 10),
         line,
@@ -308,7 +327,7 @@ function parseLogResponse(data, direction = 'backward') {
       const labels = stream.stream || {}
       for (const [timestamp, line] of (stream.values || [])) {
         logs.push({
-          id: `${timestamp}-${Math.random().toString(36).substring(2, 11)}`,
+          id: `${timestamp}-${++logIdCounter}`,
           timestamp: parseInt(timestamp, 10) / 1000000,
           timestampNano: parseInt(timestamp, 10),
           line,

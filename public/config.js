@@ -36,7 +36,7 @@ window.APP_CONFIG = {
         },
         taskLabel: 'task_name'
       },
-      defaultLogLevel: '',
+      defaultLogLevel: 'WARN',
       logsPerPage: 500,
       // WebSocket 设置
       websocket: {
@@ -46,11 +46,24 @@ window.APP_CONFIG = {
       },
       // 告警设置
       alert: {
+        level: 'ERROR',  // 告警级别：ERROR（仅错误）、WARN（警告及以上）、INFO（信息及以上）、DEBUG（所有）
         newLogHighlightDuration: 3000  // 新日志高亮持续时间（毫秒）
       },
       // 查询设置
       query: {
         defaultTimeRangeDays: 30  // 默认值：查询最近 7 天的日志
+      },
+      // 日志级别配置
+      logLevels: {
+        // 级别顺序（从高到低）
+        order: ['ERROR', 'WARN', 'INFO', 'DEBUG'],
+        // 级别映射：每个告警级别对应应该触发告警的日志级别列表
+        mapping: {
+          'ERROR': ['ERROR'],
+          'WARN': ['ERROR', 'WARN'],
+          'INFO': ['ERROR', 'WARN', 'INFO'],
+          'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
+        }
       }
     },
     {
@@ -85,11 +98,24 @@ window.APP_CONFIG = {
       },
       // 告警设置
       alert: {
+        level: 'ERROR',  // 告警级别：ERROR（仅错误）、WARN（警告及以上）、INFO（信息及以上）、DEBUG（所有）
         newLogHighlightDuration: 3000  // 新日志高亮持续时间（毫秒）
       },
       // 查询设置
       query: {
         defaultTimeRangeDays: 30  // 默认值：查询最近 7 天的日志
+      },
+      // 日志级别配置
+      logLevels: {
+        // 级别顺序（从高到低）
+        order: ['ERROR', 'WARN', 'INFO', 'DEBUG'],
+        // 级别映射：每个告警级别对应应该触发告警的日志级别列表
+        mapping: {
+          'ERROR': ['ERROR'],
+          'WARN': ['ERROR', 'WARN'],
+          'INFO': ['ERROR', 'WARN', 'INFO'],
+          'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
+        }
       }
     }
   ],

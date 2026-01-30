@@ -78,7 +78,6 @@ import { useRouter, useRoute } from 'vue-router'
 import { useTaskStore } from '../stores/taskStore'
 import { useWsStore } from '../stores/wsStore'
 import { useServiceStore } from '../stores/serviceStore'
-import { getConfig } from '../utils/config'
 import { Search, Refresh } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -125,9 +124,8 @@ function getTaskIconClass(task) {
 function selectTask(taskName) {
   // Clear unread alerts when entering task page
   store.clearUnreadAlerts(taskName)
-  const basePath = getConfig('routing.basePath', '/logs')
   const serviceId = serviceStore.getCurrentServiceId()
-  router.push(`${basePath}/${serviceId}/${taskName}`)
+  router.push(`/logs/${serviceId}/${taskName}`)
 }
 
 function refreshTasks() {

@@ -98,6 +98,9 @@ watch(currentTask, async (newTask, oldTask) => {
   nextCursor.value = null
   hasMore.value = true
 
+  // Update currently viewing task in wsStore
+  wsStore.setCurrentViewingTask(newTask)
+
   if (newTask) {
     // Clear unread alerts when viewing this task
     taskStore.clearUnreadAlerts(newTask)
@@ -207,6 +210,8 @@ function stopStreaming() {
 
 onUnmounted(() => {
   stopStreaming()
+  // Clear currently viewing task
+  wsStore.setCurrentViewingTask(null)
   // Clean up highlight timer to prevent memory leak
   if (highlightTimer) {
     clearTimeout(highlightTimer)

@@ -3,11 +3,36 @@ import { ref } from 'vue'
 import { tailLogs, buildTaskQuery } from '../api/loki'
 import { useAlertStore } from './alertStore'
 import { useTaskStore } from './taskStore'
-import { getConfig } from '../utils/config'
+import { getCurrentServiceConfig } from '../utils/config'
+
+/**
+ * Check if a log level should trigger an alert based on configured alert level and mapping
+ * @param {string} logLevel - Log level from the log entry
+ * @param {string} alertLevel - Configured alert level threshold
+ * @param {Object} levelMapping - Level mapping from config
+ * @returns {boolean} True if should trigger alert
+ */
+function shouldTriggerAlert(logLevel, alertLevel, levelMapping) {
+  // Default mapping if not provided in config
+  const defaultMapping = {
+    'ERROR': ['ERROR'],
+    'WARN': ['ERROR', 'WARN'],
+    'INFO': ['ERROR', 'WARN', 'INFO'],
+    'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
+  }
+
+  const mapping = levelMapping || defaultMapping
+  const alertLevels = mapping[alertLevel] || ['ERROR']
+
+  return alertLevels.includes(logLevel)
+}
 
 export const useWsStore = defineStore('ws', () => {
   // Connection state
   const isConnected = ref(false)
+
+  // Currently viewing task (to prevent incrementing unread count for active task)
+  const currentViewingTask = ref(null)
 
   // WebSocket controller
   let wsController = null
@@ -40,27 +65,30 @@ export const useWsStore = defineStore('ws', () => {
     // Query for all logs (no task_name filter, uses fixedLabels from config)
     const query = buildTaskQuery(null)
 
+    // Get configured alert level and level mapping
+    const alertLevel = getCurrentServiceConfig('alert.level', 'ERROR')
+    const levelMapping = getCurrentServiceConfig('logLevels.mapping', null)
+
     wsController = tailLogs(query, {
       onLog: (logs) => {
-        // Check for ERROR logs
+        // Check for logs that meet alert level threshold
         for (const log of logs) {
           const taskName = log.taskName || log.labels?.task_name
           const level = (log.level || 'INFO').toUpperCase()
 
           // Skip alert triggering during initial connection to avoid false alerts
-          if (!isInitializing && level === 'ERROR' && taskName) {
+          if (!isInitializing && shouldTriggerAlert(level, alertLevel, levelMapping) && taskName) {
             const isWatched = taskStore.watchedTasks.has(taskName)
 
-            console.log(`ERROR log detected for task: ${taskName} (watched: ${isWatched})`)
+            console.log(`${level} log detected for task: ${taskName} (watched: ${isWatched}, alert level: ${alertLevel})`)
 
             // Only trigger global alert overlay for watched tasks
             if (isWatched) {
               alertStore.triggerAlert('error')
             }
 
-            // Increment unread count for ALL tasks (watched or not) if not viewing this task
-            const currentPath = window.location.pathname
-            if (!currentPath.endsWith(`/${taskName}`)) {
+            // Increment unread count for ALL tasks (watched or not) if not currently viewing this task
+            if (currentViewingTask.value !== taskName) {
               taskStore.incrementUnreadAlerts(taskName)
               console.log(`Unread alert count for ${taskName}:`, taskStore.getUnreadAlertCount(taskName))
             }
@@ -72,14 +100,14 @@ export const useWsStore = defineStore('ws', () => {
       onOpen: () => {
         isConnected.value = true
         hadConnection = true
-        const serviceName = getConfig('loki.fixedLabels.service', 'service')
+        const serviceName = getCurrentServiceConfig('loki.fixedLabels.service', 'service')
         console.log(`WebSocket connected to service: ${serviceName}`)
         // Remove disconnect alert when reconnected
         alertStore.removeAlertReason('disconnect')
 
         // Delay marking initialization as complete to allow initial historical logs to load
-        // This prevents false alerts from historical ERROR logs on page load
-        const delay = getConfig('websocket.initializationDelay', 2000)
+        // This prevents false alerts from historical logs on page load
+        const delay = getCurrentServiceConfig('websocket.initializationDelay', 2000)
         setTimeout(() => {
           isInitializing = false
           console.log('Initialization complete, now monitoring for new errors')
@@ -87,7 +115,7 @@ export const useWsStore = defineStore('ws', () => {
       },
       onClose: () => {
         isConnected.value = false
-        const serviceName = getConfig('loki.fixedLabels.service', 'service')
+        const serviceName = getCurrentServiceConfig('loki.fixedLabels.service', 'service')
         console.log(`WebSocket disconnected from service: ${serviceName}, hadConnection:`, hadConnection)
         // Trigger disconnect alert only if we had a connection before
         if (hadConnection) {
@@ -184,14 +212,24 @@ export const useWsStore = defineStore('ws', () => {
     }
   }
 
+  /**
+   * Set the currently viewing task (to prevent incrementing unread count for active task)
+   * @param {string|null} taskName - Task name being viewed, or null if not viewing any task
+   */
+  function setCurrentViewingTask(taskName) {
+    currentViewingTask.value = taskName
+  }
+
   return {
     // State
     isConnected,
+    currentViewingTask,
 
     // Actions
     connect,
     disconnect,
     subscribe,
-    subscribeAll
+    subscribeAll,
+    setCurrentViewingTask
   }
 })

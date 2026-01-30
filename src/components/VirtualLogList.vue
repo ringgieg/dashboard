@@ -89,6 +89,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, ArrowRight, DocumentCopy } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import { getConfig } from '../utils/config'
 
 const props = defineProps({
   logs: { type: Array, required: true },
@@ -177,8 +178,9 @@ function handleScroll(event) {
   scrollTop.value = target.scrollTop
 
   const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight
-  // Use dynamic threshold based on container height (default 20%)
-  const threshold = containerHeight.value * 0.2
+  // Use dynamic threshold based on container height
+  const loadMoreThreshold = getConfig('virtualScroll.loadMoreThreshold', 0.2)
+  const threshold = containerHeight.value * loadMoreThreshold
   if (scrollBottom < threshold && !props.loading && props.hasMore) {
     emit('load-more')
   }

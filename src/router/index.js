@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getConfig, getCurrentServiceId } from '../utils/config'
+import { getCurrentServiceId } from '../utils/config'
 
-const basePath = getConfig('routing.basePath', '/logs')
+const basePath = '/logs'
 
 // Dummy component for routes (App.vue handles all rendering)
 const RouteView = { template: '<div></div>' }

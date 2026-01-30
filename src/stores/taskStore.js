@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { ElMessage } from 'element-plus'
 import { getTaskNames } from '../api/loki'
 
 const STORAGE_KEY = 'loki-viewer-watched-tasks'
@@ -9,8 +10,8 @@ export const useTaskStore = defineStore('task', () => {
   const tasks = ref([])
   const watchedTasks = ref(new Set())
   const loading = ref(false)
-  // Unread alerts count per task: Map<taskName, count>
-  const unreadAlerts = ref(new Map())
+  // Unread alerts count per task: Object {taskName: count}
+  const unreadAlerts = ref({})
 
   // Load watched tasks from localStorage
   function loadWatchedTasks() {
@@ -21,6 +22,10 @@ export const useTaskStore = defineStore('task', () => {
       }
     } catch (e) {
       console.error('Error loading watched tasks:', e)
+      ElMessage.warning({
+        message: '无法加载已保存的关注列表，可能是因为浏览器隐私模式',
+        duration: 3000
+      })
     }
   }
 
@@ -30,6 +35,10 @@ export const useTaskStore = defineStore('task', () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify([...watchedTasks.value]))
     } catch (e) {
       console.error('Error saving watched tasks:', e)
+      ElMessage.error({
+        message: '无法保存关注设置（浏览器隐私模式下设置不会被保存）',
+        duration: 5000
+      })
     }
   }
 
@@ -58,7 +67,7 @@ export const useTaskStore = defineStore('task', () => {
   // Clear all tasks (useful when switching services)
   function clearTasks() {
     tasks.value = []
-    unreadAlerts.value.clear()
+    unreadAlerts.value = {}
   }
 
   // Toggle watched status for a task
@@ -80,18 +89,18 @@ export const useTaskStore = defineStore('task', () => {
 
   // Increment unread alert count for a task
   function incrementUnreadAlerts(taskName) {
-    const current = unreadAlerts.value.get(taskName) || 0
-    unreadAlerts.value.set(taskName, current + 1)
+    const current = unreadAlerts.value[taskName] || 0
+    unreadAlerts.value[taskName] = current + 1
   }
 
   // Clear unread alerts for a task
   function clearUnreadAlerts(taskName) {
-    unreadAlerts.value.delete(taskName)
+    delete unreadAlerts.value[taskName]
   }
 
   // Get unread alert count for a task
   function getUnreadAlertCount(taskName) {
-    return unreadAlerts.value.get(taskName) || 0
+    return unreadAlerts.value[taskName] || 0
   }
 
   // Computed: sorted tasks (watched first, then alphabetically)

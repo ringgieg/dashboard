@@ -83,8 +83,8 @@ describe('config.js', () => {
       window.APP_CONFIG = undefined
 
       // Test global config values
-      expect(getConfig('routing.basePath')).toBe('/logs')
       expect(getConfig('virtualScroll.estimatedItemHeight')).toBe(60)
+      expect(getConfig('virtualScroll.bufferSize')).toBe(10)
       // Test that services array exists in default config
       expect(getConfig('services')).toBeDefined()
       expect(getConfig('services').length).toBeGreaterThan(0)
@@ -128,13 +128,13 @@ describe('config.js', () => {
     it('should support new config structure', () => {
       window.APP_CONFIG = {
         pageTitle: 'My Log Viewer',
-        routing: {
-          basePath: '/logs'
+        virtualScroll: {
+          estimatedItemHeight: 80
         }
       }
 
       expect(getConfig('pageTitle')).toBe('My Log Viewer')
-      expect(getConfig('routing.basePath')).toBe('/logs')
+      expect(getConfig('virtualScroll.estimatedItemHeight')).toBe(80)
     })
   })
 
