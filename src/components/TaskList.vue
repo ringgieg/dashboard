@@ -77,6 +77,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useTaskStore } from '../stores/taskStore'
 import { useWsStore } from '../stores/wsStore'
+import { useServiceStore } from '../stores/serviceStore'
 import { getConfig } from '../utils/config'
 import { Search, Refresh } from '@element-plus/icons-vue'
 
@@ -84,6 +85,7 @@ const router = useRouter()
 const route = useRoute()
 const store = useTaskStore()
 const wsStore = useWsStore()
+const serviceStore = useServiceStore()
 
 const searchQuery = ref('')
 const contextMenuVisible = ref(false)
@@ -124,7 +126,8 @@ function selectTask(taskName) {
   // Clear unread alerts when entering task page
   store.clearUnreadAlerts(taskName)
   const basePath = getConfig('routing.basePath', '/logs')
-  router.push(`${basePath}/${taskName}`)
+  const serviceId = serviceStore.getCurrentServiceId()
+  router.push(`${basePath}/${serviceId}/${taskName}`)
 }
 
 function refreshTasks() {
@@ -170,8 +173,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #ffffff;
-  border-right: 1px solid #e5e7eb;
+  background: var(--el-bg-color);
+  border-right: 1px solid var(--el-border-color-lighter);
 }
 
 .task-list-header {
@@ -179,7 +182,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 16px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
 .search-input {
@@ -201,23 +204,23 @@ onUnmounted(() => {
   justify-content: space-between;
   padding: 12px 16px;
   cursor: pointer;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--el-fill-color-light);
   user-select: none;
   transition: all 0.15s ease;
 }
 
 .task-item:hover {
-  background: #f9fafb;
+  background: var(--el-fill-color-lighter);
 }
 
 .task-item.is-selected {
-  background: #eff6ff;
-  border-left: 3px solid #3b82f6;
+  background: var(--el-color-primary-light-9);
+  border-left: 3px solid var(--el-color-primary);
   padding-left: 13px;
 }
 
 .task-item.is-unwatched {
-  color: #9ca3af;
+  color: var(--el-text-color-secondary);
 }
 
 .task-info {
@@ -234,15 +237,15 @@ onUnmounted(() => {
 }
 
 .task-icon.unwatched {
-  color: #d1d5db;
+  color: var(--el-border-color);
 }
 
 .task-icon.connected {
-  color: #10b981;
+  color: var(--el-color-success);
 }
 
 .task-icon.alert {
-  color: #ef4444;
+  color: var(--el-color-danger);
   animation: pulse-icon 2s ease-in-out infinite;
 }
 
@@ -262,11 +265,11 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
-  color: #111827;
+  color: var(--el-text-color-primary);
 }
 
 .task-item.is-unwatched .task-name {
-  color: #9ca3af;
+  color: var(--el-text-color-secondary);
   font-weight: 400;
 }
 
@@ -277,8 +280,8 @@ onUnmounted(() => {
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  background: #ef4444;
-  color: #ffffff;
+  background: var(--el-color-danger);
+  color: var(--el-bg-color);
   border-radius: 10px;
   font-size: 11px;
   font-weight: 600;
@@ -286,23 +289,23 @@ onUnmounted(() => {
 }
 
 .unread-badge.is-unwatched {
-  background: #9ca3af;
-  color: #ffffff;
+  background: var(--el-text-color-secondary);
+  color: var(--el-bg-color);
 }
 
 .no-tasks {
   padding: 48px 20px;
   text-align: center;
-  color: #9ca3af;
+  color: var(--el-text-color-secondary);
   font-size: 14px;
 }
 
 .task-list-footer {
   padding: 12px 16px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--el-border-color-lighter);
   font-size: 13px;
-  color: #6b7280;
-  background: #f9fafb;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-lighter);
 }
 
 /* Context Menu */
@@ -319,8 +322,8 @@ onUnmounted(() => {
   position: fixed;
   z-index: 1000;
   min-width: 140px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
   padding: 4px;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -330,13 +333,13 @@ onUnmounted(() => {
   padding: 8px 12px;
   cursor: pointer;
   font-size: 14px;
-  color: #374151;
+  color: var(--el-text-color-regular);
   border-radius: 6px;
   transition: all 0.15s ease;
 }
 
 .context-menu-item:hover {
-  background: #f3f4f6;
-  color: #111827;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
 }
 </style>

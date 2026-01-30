@@ -59,7 +59,7 @@ import { useRoute } from 'vue-router'
 import { queryTaskLogs, filterLogsByLevel } from '../api/loki'
 import { useWsStore } from '../stores/wsStore'
 import { useTaskStore } from '../stores/taskStore'
-import { getConfig } from '../utils/config'
+import { getCurrentServiceConfig } from '../utils/config'
 import VirtualLogList from './VirtualLogList.vue'
 
 const route = useRoute()
@@ -73,12 +73,11 @@ const loading = ref(false)
 const initialLoading = ref(false)
 const hasMore = ref(true)
 const nextCursor = ref(null)
-const selectedLevel = ref(getConfig('defaultLogLevel', ''))
+const selectedLevel = ref(getCurrentServiceConfig('defaultLogLevel', ''))
 
-// Get service name from config
-const serviceName = getConfig('service', 'Batch-Sync')
-const logsPerPage = getConfig('logsPerPage', 500)
-const newLogHighlightDuration = getConfig('alert.newLogHighlightDuration', 3000)
+// Get config values
+const logsPerPage = getCurrentServiceConfig('logsPerPage', 500)
+const newLogHighlightDuration = getCurrentServiceConfig('alert.newLogHighlightDuration', 3000)
 
 let unsubscribe = null
 let highlightTimer = null
@@ -129,7 +128,7 @@ async function fetchInitialLogs() {
   hasMore.value = true
 
   try {
-    const options = { service: serviceName, limit: logsPerPage }
+    const options = { limit: logsPerPage }
     if (selectedLevel.value) options.level = selectedLevel.value
 
     console.log('[LogViewer] Query options:', options)
@@ -152,7 +151,6 @@ async function loadMoreLogs() {
 
   try {
     const options = {
-      service: serviceName,
       limit: logsPerPage,
       cursor: nextCursor.value
     }
@@ -222,7 +220,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #ffffff;
+  background: var(--el-bg-color);
 }
 
 .log-viewer-header {
@@ -230,8 +228,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 24px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #ffffff;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color);
 }
 
 .header-left {
@@ -243,27 +241,27 @@ onUnmounted(() => {
 .task-name {
   font-size: 16px;
   font-weight: 700;
-  color: #111827;
+  color: var(--el-text-color-primary);
   letter-spacing: -0.025em;
 }
 
 .connection-status {
   font-size: 13px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--el-text-color-secondary);
   padding: 4px 12px;
   border-radius: 12px;
-  background: #f3f4f6;
+  background: var(--el-fill-color-light);
 }
 
 .connection-status.connected {
-  color: #059669;
-  background: #d1fae5;
+  color: var(--el-color-success);
+  background: var(--el-color-success-light-9);
 }
 
 .connection-status.disconnected {
-  color: #dc2626;
-  background: #fee2e2;
+  color: var(--el-color-danger);
+  background: var(--el-color-danger-light-9);
 }
 
 .header-filters {
@@ -275,7 +273,7 @@ onUnmounted(() => {
 .log-viewer-content {
   flex: 1;
   overflow: hidden;
-  background: #f9fafb;
+  background: var(--el-bg-color-page);
 }
 
 .loading-state,
@@ -284,7 +282,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #9ca3af;
+  color: var(--el-text-color-secondary);
   font-size: 15px;
   font-weight: 500;
 }

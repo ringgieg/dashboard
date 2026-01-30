@@ -1,4 +1,5 @@
 <template>
+  <!-- Alert Overlay -->
   <div
     v-if="alertStore.hasAlert"
     class="alert-overlay"

@@ -15,7 +15,9 @@ vi.mock('element-plus', () => ({
 
 // Mock icons
 vi.mock('@element-plus/icons-vue', () => ({
-  Search: { name: 'Search' }
+  Search: { name: 'Search' },
+  Refresh: { name: 'Refresh' },
+  CircleClose: { name: 'CircleClose' }
 }))
 
 describe('TaskList.vue', () => {
@@ -173,7 +175,7 @@ describe('TaskList.vue', () => {
 
     await wrapper.find('.task-item').trigger('click')
 
-    expect(pushSpy).toHaveBeenCalledWith('/batch-sync/my-task')
+    expect(pushSpy).toHaveBeenCalledWith('/logs/batch-sync/my-task')
   })
 
   it('should show context menu on right-click', async () => {

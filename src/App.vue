@@ -1,7 +1,11 @@
 <template>
   <div class="app-container">
     <AlertOverlay />
-    <NavBar />
+    <NavBar>
+      <template #actions>
+        <MuteButton />
+      </template>
+    </NavBar>
     <div class="app-main">
       <aside class="app-sidebar">
         <TaskList />
@@ -15,19 +19,25 @@
 
 <script setup>
 import { onMounted } from 'vue'
+import { useServiceStore } from './stores/serviceStore'
 import { useTaskStore } from './stores/taskStore'
 import { useWsStore } from './stores/wsStore'
 import NavBar from './components/NavBar.vue'
 import TaskList from './components/TaskList.vue'
 import LogViewer from './components/LogViewer.vue'
 import AlertOverlay from './components/AlertOverlay.vue'
+import MuteButton from './components/MuteButton.vue'
 
+const serviceStore = useServiceStore()
 const taskStore = useTaskStore()
 const wsStore = useWsStore()
 
 onMounted(async () => {
+  // Initialize service store first (sets up config getters)
+  serviceStore.initialize()
+
+  // Then initialize task store and WebSocket
   await taskStore.initialize()
-  // Start global WebSocket connection
   wsStore.connect()
 })
 </script>
@@ -38,7 +48,7 @@ onMounted(async () => {
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  background: #f9fafb;
+  background: var(--el-bg-color-page);
 }
 
 .app-main {

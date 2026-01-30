@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getConfig } from '../utils/config'
+import { getConfig, getCurrentServiceConfig } from '../utils/config'
 
 // Use nginx proxy for WebSocket connections
 // Automatically uses wss:// for HTTPS and ws:// for HTTP
@@ -39,27 +39,30 @@ async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
 
 /**
  * Query logs with cursor-based pagination for infinite scroll
- * Default time range: last 30 days (Loki has query time range limits)
+ * Default time range: configurable via query.defaultTimeRangeDays (Loki has query time range limits)
  */
 export async function queryLogsWithCursor(query, options = {}) {
   const { limit = 500, cursor, direction = 'backward' } = options
 
   const params = { query, limit, direction }
 
-  // Loki has query time range limits, use last 30 days as default
+  // Get configured time range (default: 7 days)
+  const timeRangeDays = getCurrentServiceConfig('query.defaultTimeRangeDays') ||
+                        getConfig('query.defaultTimeRangeDays', 7)
+
   const now = Date.now() * 1000000 // Current time in nanoseconds
-  const thirtyDaysAgo = (Date.now() - 30 * 24 * 60 * 60 * 1000) * 1000000
+  const timeRangeAgo = (Date.now() - timeRangeDays * 24 * 60 * 60 * 1000) * 1000000
 
   if (cursor) {
     if (direction === 'backward') {
       params.end = cursor
-      params.start = thirtyDaysAgo.toString()
+      params.start = timeRangeAgo.toString()
     } else {
       params.start = cursor
     }
   } else {
-    // Initial fetch: last 30 days
-    params.start = thirtyDaysAgo.toString()
+    // Initial fetch: use configured time range
+    params.start = timeRangeAgo.toString()
     params.end = now.toString()
   }
 
@@ -215,6 +218,9 @@ export function tailLogs(query, callbacks = {}) {
 }
 
 function parseStreamData(streams) {
+  // Get configured task label name from current service
+  const taskLabel = getCurrentServiceConfig('loki.taskLabel', 'task_name')
+
   const logs = []
   for (const stream of streams) {
     const labels = stream.stream || {}
@@ -225,7 +231,7 @@ function parseStreamData(streams) {
         timestampNano: parseInt(timestamp, 10),
         line,
         labels,
-        taskName: labels.task_name,
+        taskName: labels[taskLabel],
         service: labels.service,
         level: labels.level || extractLevel(line)
       })
@@ -245,17 +251,31 @@ export async function getLabelValues(labelName) {
 }
 
 export async function getTaskNames() {
-  return getLabelValues('task_name')
+  const taskLabel = getCurrentServiceConfig('loki.taskLabel', 'task_name')
+  return getLabelValues(taskLabel)
 }
 
 export function buildTaskQuery(taskName, options = {}) {
-  const { service = 'Batch-Sync', level } = options
+  const { level } = options
 
-  let query = `{job="tasks", service="${service}"`
-  if (taskName) {
-    query += `, task_name="${taskName}"`
+  // Get configured labels from current service
+  const fixedLabels = getCurrentServiceConfig('loki.fixedLabels', { job: 'tasks', service: 'Batch-Sync' })
+  const taskLabel = getCurrentServiceConfig('loki.taskLabel', 'task_name')
+
+  // Build label selectors
+  const labels = []
+
+  // Add fixed labels
+  for (const [key, value] of Object.entries(fixedLabels)) {
+    labels.push(`${key}="${value}"`)
   }
-  query += '}'
+
+  // Add task name filter if specified
+  if (taskName) {
+    labels.push(`${taskLabel}="${taskName}"`)
+  }
+
+  let query = `{${labels.join(', ')}}`
 
   // Level works as threshold: INFO shows ERROR, WARN, INFO
   if (level) {
@@ -278,6 +298,9 @@ export async function queryTaskLogs(taskName, options = {}) {
 }
 
 function parseLogResponse(data, direction = 'backward') {
+  // Get configured task label name from current service
+  const taskLabel = getCurrentServiceConfig('loki.taskLabel', 'task_name')
+
   const logs = []
 
   if (data.data?.result) {
@@ -290,7 +313,7 @@ function parseLogResponse(data, direction = 'backward') {
           timestampNano: parseInt(timestamp, 10),
           line,
           labels,
-          taskName: labels.task_name,
+          taskName: labels[taskLabel],
           service: labels.service,
           level: labels.level || extractLevel(line)
         })

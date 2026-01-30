@@ -55,6 +55,12 @@ export const useTaskStore = defineStore('task', () => {
     }
   }
 
+  // Clear all tasks (useful when switching services)
+  function clearTasks() {
+    tasks.value = []
+    unreadAlerts.value.clear()
+  }
+
   // Toggle watched status for a task
   function toggleWatched(taskName) {
     if (watchedTasks.value.has(taskName)) {
@@ -113,6 +119,8 @@ export const useTaskStore = defineStore('task', () => {
     // Actions
     initialize,
     fetchTasks,
+    loadTasks: fetchTasks,  // Alias for consistency
+    clearTasks,
     toggleWatched,
     incrementUnreadAlerts,
     clearUnreadAlerts,

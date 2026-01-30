@@ -16,10 +16,15 @@ vi.mock('../api/loki', () => ({
 vi.mock('../utils/config', () => ({
   getConfig: vi.fn((key, fallback) => {
     const config = {
+      'alert.newLogHighlightDuration': 3000,
+      'routing.basePath': '/logs'
+    }
+    return config[key] !== undefined ? config[key] : fallback
+  }),
+  getCurrentServiceConfig: vi.fn((key, fallback) => {
+    const config = {
       'defaultLogLevel': '',
-      'defaultService': 'Batch-Sync',
-      'logsPerPage': 500,
-      'alert.newLogHighlightDuration': 3000
+      'logsPerPage': 500
     }
     return config[key] !== undefined ? config[key] : fallback
   })
@@ -99,7 +104,6 @@ describe('LogViewer.vue', () => {
     await flushPromises()
 
     expect(loki.queryTaskLogs).toHaveBeenCalledWith('test-task', {
-      service: 'Batch-Sync',
       limit: 500
     })
     expect(wrapper.vm.logs.length).toBeGreaterThan(0)
@@ -123,7 +127,6 @@ describe('LogViewer.vue', () => {
     const calls = loki.queryTaskLogs.mock.calls
     const lastCall = calls[calls.length - 1]
     expect(lastCall[1]).toMatchObject({
-      service: 'Batch-Sync',
       limit: 500,
       level: 'ERROR'
     })

@@ -37,29 +37,30 @@ export const useWsStore = defineStore('ws', () => {
     // Set initialization flag
     isInitializing = true
 
-    // Query for all logs of the configured service (no task_name filter)
-    const serviceName = getConfig('service', 'Batch-Sync')
-    const query = buildTaskQuery(null, { service: serviceName })
+    // Query for all logs (no task_name filter, uses fixedLabels from config)
+    const query = buildTaskQuery(null)
 
     wsController = tailLogs(query, {
       onLog: (logs) => {
-        // Check for ERROR logs on watched tasks
+        // Check for ERROR logs
         for (const log of logs) {
           const taskName = log.taskName || log.labels?.task_name
           const level = (log.level || 'INFO').toUpperCase()
 
           // Skip alert triggering during initial connection to avoid false alerts
-          if (!isInitializing && level === 'ERROR' && taskName && taskStore.watchedTasks.has(taskName)) {
-            console.log('ERROR log detected for watched task:', taskName)
+          if (!isInitializing && level === 'ERROR' && taskName) {
+            const isWatched = taskStore.watchedTasks.has(taskName)
 
-            // Trigger global alert overlay
-            alertStore.triggerAlert('error')
+            console.log(`ERROR log detected for task: ${taskName} (watched: ${isWatched})`)
 
-            // Increment unread count if not viewing this task
+            // Only trigger global alert overlay for watched tasks
+            if (isWatched) {
+              alertStore.triggerAlert('error')
+            }
+
+            // Increment unread count for ALL tasks (watched or not) if not viewing this task
             const currentPath = window.location.pathname
-            const basePath = getConfig('routing.basePath', '/logs')
-            const taskPath = `${basePath}/${taskName}`
-            if (currentPath !== taskPath) {
+            if (!currentPath.endsWith(`/${taskName}`)) {
               taskStore.incrementUnreadAlerts(taskName)
               console.log(`Unread alert count for ${taskName}:`, taskStore.getUnreadAlertCount(taskName))
             }
@@ -71,8 +72,8 @@ export const useWsStore = defineStore('ws', () => {
       onOpen: () => {
         isConnected.value = true
         hadConnection = true
-        const serviceName = getConfig('service', 'Batch-Sync')
-        console.log(`WebSocket connected to ${serviceName} service`)
+        const serviceName = getConfig('loki.fixedLabels.service', 'service')
+        console.log(`WebSocket connected to service: ${serviceName}`)
         // Remove disconnect alert when reconnected
         alertStore.removeAlertReason('disconnect')
 
@@ -86,8 +87,8 @@ export const useWsStore = defineStore('ws', () => {
       },
       onClose: () => {
         isConnected.value = false
-        const serviceName = getConfig('service', 'Batch-Sync')
-        console.log(`WebSocket disconnected from ${serviceName} service, hadConnection:`, hadConnection)
+        const serviceName = getConfig('loki.fixedLabels.service', 'service')
+        console.log(`WebSocket disconnected from service: ${serviceName}, hadConnection:`, hadConnection)
         // Trigger disconnect alert only if we had a connection before
         if (hadConnection) {
           console.log('Triggering disconnect alert')

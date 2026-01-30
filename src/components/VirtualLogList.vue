@@ -281,16 +281,16 @@ onUnmounted(() => {
 .virtual-log-list {
   height: 100%;
   overflow-y: auto;
-  background: #f9fafb;
+  background: var(--el-bg-color-page);
   padding: 12px;
 }
 
 .log-entry {
   padding: 12px 16px;
   margin-bottom: 8px;
-  background: #ffffff;
+  background: var(--el-bg-color);
   border-radius: 8px;
-  border-left: 3px solid #3b82f6;
+  border-left: 3px solid var(--el-color-primary);
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   transition: all 0.15s ease;
   cursor: pointer;
@@ -315,17 +315,17 @@ onUnmounted(() => {
 }
 
 .log-entry.level-error {
-  border-left-color: #ef4444;
-  background: #fef2f2;
+  border-left-color: var(--el-color-danger);
+  background: var(--el-color-danger-light-9);
 }
 
 .log-entry.level-warn {
-  border-left-color: #f59e0b;
-  background: #fffbeb;
+  border-left-color: var(--el-color-warning);
+  background: var(--el-color-warning-light-9);
 }
 
 .log-entry.level-debug {
-  border-left-color: #9ca3af;
+  border-left-color: var(--el-text-color-secondary);
 }
 
 .log-meta {
@@ -338,7 +338,7 @@ onUnmounted(() => {
 .expand-icon {
   display: flex;
   align-items: center;
-  color: #9ca3af;
+  color: var(--el-text-color-secondary);
   font-size: 16px;
   transition: all 0.15s ease;
   flex-shrink: 0;
@@ -348,13 +348,13 @@ onUnmounted(() => {
 }
 
 .log-entry:hover .expand-icon {
-  color: #3b82f6;
-  background: #eff6ff;
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .log-time {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--el-text-color-secondary);
   font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, monospace;
   font-weight: 500;
 }
@@ -364,25 +364,25 @@ onUnmounted(() => {
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 4px;
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--el-color-primary-light-8);
+  color: var(--el-color-primary);
   text-transform: uppercase;
   letter-spacing: 0.025em;
 }
 
 .log-level.level-error {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--el-color-danger-light-9);
+  color: var(--el-color-danger-dark-2);
 }
 
 .log-level.level-warn {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning-dark-2);
 }
 
 .log-level.level-debug {
-  background: #f3f4f6;
-  color: #4b5563;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
 }
 
 .new-tag {
@@ -390,15 +390,15 @@ onUnmounted(() => {
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 4px;
-  background: #10b981;
-  color: #ffffff;
+  background: var(--el-color-success);
+  color: var(--el-bg-color);
   text-transform: uppercase;
 }
 
 .log-content {
   font-size: 13px;
   line-height: 1.6;
-  color: #111827;
+  color: var(--el-text-color-primary);
   font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, monospace;
   white-space: pre-wrap;
   word-break: break-word;
@@ -411,7 +411,7 @@ onUnmounted(() => {
 .no-more {
   padding: 20px;
   text-align: center;
-  color: #9ca3af;
+  color: var(--el-text-color-secondary);
   font-size: 14px;
   font-weight: 500;
 }
@@ -442,20 +442,20 @@ onUnmounted(() => {
 .section-title {
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--el-text-color-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .raw-log-content {
   padding: 10px 12px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--el-fill-color-lighter);
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 12px;
   font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, monospace;
   line-height: 1.5;
-  color: #111827;
+  color: var(--el-text-color-primary);
   white-space: pre-wrap;
   word-break: break-word;
   user-select: text;
@@ -474,8 +474,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   padding: 6px 10px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--el-fill-color-lighter);
+  border: 1px solid var(--el-border-color-light);
   border-radius: 6px;
   font-size: 12px;
   font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, monospace;
@@ -485,13 +485,13 @@ onUnmounted(() => {
 }
 
 .label-item:hover {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: var(--el-fill-color-light);
+  border-color: var(--el-border-color);
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .label-key {
-  color: #6b7280;
+  color: var(--el-text-color-secondary);
   font-weight: 600;
   margin-right: 8px;
   white-space: nowrap;

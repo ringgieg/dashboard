@@ -1,20 +1,30 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getConfig } from '../utils/config'
+import { getConfig, getCurrentServiceId } from '../utils/config'
 
 const basePath = getConfig('routing.basePath', '/logs')
+
+// Dummy component for routes (App.vue handles all rendering)
+const RouteView = { template: '<div></div>' }
 
 const routes = [
   {
     path: '/',
-    redirect: basePath
+    redirect: () => {
+      const serviceId = getCurrentServiceId()
+      return `${basePath}/${serviceId}`
+    }
   },
   {
-    path: basePath,
-    name: 'batch-sync'
+    path: `${basePath}/:serviceId`,
+    name: 'service-logs',
+    component: RouteView,
+    props: true
   },
   {
-    path: `${basePath}/:taskName`,
-    name: 'batch-sync-task'
+    path: `${basePath}/:serviceId/:taskName`,
+    name: 'service-task-logs',
+    component: RouteView,
+    props: true
   }
 ]
 

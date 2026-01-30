@@ -7,6 +7,90 @@
 - **开发环境**: `public/config.js`
 - **生产环境**: `dist/config.js` (构建后可直接修改)
 
+## 核心概念
+
+Loki Viewer 支持在一个界面中监控多个服务的日志，并可以快速切换不同服务。
+
+**主要特性**:
+- 导航栏显示服务选择器，一键切换服务
+- 切换服务时自动重新连接 WebSocket
+- 每个服务可以有独立的配置（标签、日志级别、每页条数等）
+- 全局配置（API路径、WebSocket设置等）对所有服务生效
+- 路由格式: `/logs/:serviceId/:taskName`
+
+**配置示例**:
+```javascript
+window.APP_CONFIG = {
+  appTitle: '企业日志监控平台',
+
+  // 当前激活的服务 ID（启动时显示的服务）
+  activeService: 'batch-sync',
+
+  // 服务列表
+  services: [
+    {
+      id: 'batch-sync',
+      displayName: '批量同步服务',
+      loki: {
+        fixedLabels: {
+          job: 'tasks',
+          service: 'Batch-Sync'
+        },
+        taskLabel: 'task_name'
+      },
+      defaultLogLevel: '',
+      logsPerPage: 500
+    },
+    {
+      id: 'data-service',
+      displayName: '数据服务',
+      loki: {
+        fixedLabels: {
+          job: 'api',
+          service: 'Data-Service'
+        },
+        taskLabel: 'endpoint'
+      },
+      defaultLogLevel: 'WARN',
+      logsPerPage: 1000
+    }
+  ],
+
+  // 全局 Loki API 配置（所有服务共享）
+  loki: {
+    apiBasePath: '/loki/api/v1',
+    wsProtocol: '',
+    wsHost: ''
+  }
+}
+```
+
+## 重要概念说明
+
+### appTitle vs service 的区别
+
+- **`appTitle`**: 界面显示标题，用于导航栏显示，纯展示用途
+  - 例如: "数据中台日志监控平台"、"生产环境监控"
+  - 如果不配置，默认显示 "Loki Log Viewer"
+  - 与 Loki 查询无关
+
+- **`loki.fixedLabels.service`**: Loki 查询使用的服务标签值
+  - 例如: "Batch-Sync"、"Data-Service"
+  - 这是传递给 Loki 的实际标签值，用于筛选日志
+  - 必须与 Loki 中的 service 标签完全匹配
+
+**示例**:
+```javascript
+window.APP_CONFIG = {
+  appTitle: '数据中台日志监控',      // 导航栏显示: "数据中台日志监控"
+  loki: {
+    fixedLabels: {
+      service: 'Batch-Sync'     // Loki 查询: {service="Batch-Sync", ...}
+    }
+  }
+}
+```
+
 ## 配置选项
 
 ### 基础配置
@@ -20,24 +104,15 @@
   pageTitle: '数据中台日志监控'
   ```
 
-#### `appName` (可选)
+#### `appTitle` (可选)
 - **类型**: `string`
-- **默认值**: `''` (空字符串)
-- **说明**: 导航栏显示的应用名称。如果为空，显示 `service` 的值
-- **用途**: 用于区分应用名称和服务名称。例如应用名可以是"日志监控平台"，而服务名是"Batch-Sync"
+- **默认值**: `'Loki Log Viewer'`
+- **说明**: 导航栏显示的应用标题
+- **重要**: 这是独立的显示标题，与 Loki 查询中使用的 `service` 标签值分开
+- **用途**: 自定义应用在界面上的显示名称。如果不配置，默认显示 "Loki Log Viewer"
 - **示例**:
   ```javascript
-  appName: '日志监控平台'
-  ```
-
-#### `service`
-- **类型**: `string`
-- **默认值**: `'Batch-Sync'`
-- **说明**: 要监控的服务名称，对应 Loki 标签 `service="xxx"`
-- **重要**: 此值必须与 Loki 中的 service 标签完全匹配
-- **示例**:
-  ```javascript
-  service: 'Data-Service'
+  appTitle: '数据中台日志监控平台'
   ```
 
 #### `defaultLogLevel`
@@ -97,6 +172,115 @@
     wsHost: 'loki.example.com:3100'
   }
   ```
+
+#### `loki.labelNames.service`
+- **类型**: `string`
+- **默认值**: `'service'`
+- **说明**: Loki 中用于标识服务的**标签名**
+#### `loki.fixedLabels`
+- **类型**: `object`
+- **默认值**: `{ job: 'tasks', service: 'Batch-Sync' }`
+- **说明**: 固定的标签筛选器，会自动添加到所有 Loki 查询中
+- **用途**: 这些是固定的 `label="value"` 对，用于限定查询范围。**包括服务名**
+- **重要**: `service` 应该在这里配置，而不是作为顶层配置项
+- **使用场景**:
+  - 指定要监控的服务（必需）
+  - 在多租户环境中过滤特定环境
+  - 限定查询范围到特定的日志源
+  - 添加必需的业务标签过滤器
+- **示例**:
+  ```javascript
+  loki: {
+    fixedLabels: {
+      job: 'tasks',
+      service: 'Data-Service',
+      env: 'production',
+      region: 'us-east-1'
+    }
+  }
+  // 生成的查询: {job="tasks", service="Data-Service", env="production", region="us-east-1", task_name="xxx"}
+  ```
+
+  **最小配置**:
+  ```javascript
+  loki: {
+    fixedLabels: {
+      service: 'Batch-Sync'  // 至少需要指定服务
+    }
+  }
+  ```
+
+#### `loki.taskLabel`
+- **类型**: `string`
+- **默认值**: `'task_name'`
+- **说明**: Loki 中用于任务分类的**动态标签名**
+- **用途**: 该标签用于获取任务列表并按任务过滤日志
+- **使用场景**: 当 Loki 使用不同的标签名来标识任务时（如 `job_name`、`task`、`job_id` 等）
+- **示例**:
+  ```javascript
+  loki: {
+    taskLabel: 'job_name'  // 查询将使用 job_name="xxx" 来过滤任务
+  }
+  ```
+
+### 服务配置
+
+#### `activeService` (必填)
+- **类型**: `string`
+- **默认值**: `'batch-sync'`
+- **说明**: 启动时激活的服务 ID
+- **示例**:
+  ```javascript
+  activeService: 'data-service'
+  ```
+
+#### `services` (必填)
+- **类型**: `Array<ServiceConfig>`
+- **默认值**: 包含 batch-sync 和 data-service 两个服务
+- **说明**: 服务配置数组，定义所有可监控的服务
+- **服务配置对象**:
+  - `id` (必填): 服务唯一标识
+  - `displayName` (必填): 服务显示名称
+  - `loki` (必填): 该服务的 Loki 配置（fixedLabels, taskLabel）
+  - `defaultLogLevel` (可选): 该服务的默认日志级别
+  - `logsPerPage` (可选): 该服务的每页日志条数
+- **示例**:
+  ```javascript
+  services: [
+    {
+      id: 'batch-sync',
+      displayName: '批量同步服务',
+      loki: {
+        fixedLabels: {
+          job: 'tasks',
+          service: 'Batch-Sync'
+        },
+        taskLabel: 'task_name'
+      },
+      defaultLogLevel: '',
+      logsPerPage: 500
+    },
+    {
+      id: 'data-service',
+      displayName: '数据服务',
+      loki: {
+        fixedLabels: {
+          job: 'api',
+          service: 'Data-Service'
+        },
+        taskLabel: 'endpoint'
+      },
+      defaultLogLevel: 'WARN',
+      logsPerPage: 1000
+    }
+  ]
+  ```
+
+**注意**:
+- `loki.fixedLabels` 和 `loki.taskLabel` 必须配置在每个服务对象中
+- 全局 `loki` 配置（apiBasePath、wsProtocol、wsHost）对所有服务生效
+- 可以为不同服务配置不同的日志级别和每页条数
+- `activeService` 必须是 `services` 数组中的某个服务的 ID
 
 ### 路由配置
 
@@ -159,42 +343,182 @@
 - **默认值**: `3000`
 - **说明**: 新日志高亮显示的持续时间 (毫秒)
 
+### 查询配置
+
+#### `query.defaultTimeRangeDays`
+- **类型**: `number`
+- **默认值**: `7`
+- **说明**: 默认查询多少天的日志数据
+- **用途**: 控制初始加载和分页加载时的时间范围
+- **建议**: 根据日志量和 Loki 性能调整
+  - 日志量大时建议设置较小值（如 3-7 天）
+  - Loki 对查询时间范围有限制，过大可能导致查询超时
+- **注意**: 此配置可在全局设置，也可在每个服务中单独设置
+- **示例**:
+  ```javascript
+  query: {
+    defaultTimeRangeDays: 3  // 只查询最近 3 天的日志
+  }
+  ```
+
+  **服务级别配置示例**:
+  ```javascript
+  services: [
+    {
+      id: 'batch-sync',
+      displayName: '批量同步服务',
+      query: {
+        defaultTimeRangeDays: 14  // 该服务查询 14 天
+      },
+      loki: { ... }
+    },
+    {
+      id: 'data-service',
+      displayName: '数据服务',
+      query: {
+        defaultTimeRangeDays: 3   // 该服务只查询 3 天
+      },
+      loki: { ... }
+    }
+  ]
+  ```
+
 ## 配置示例
 
-### 示例 1: 基础自定义
+### 示例 1: 最小配置（监控单个服务）
 ```javascript
 window.APP_CONFIG = {
-  pageTitle: '我的日志监控系统',
-  appName: '日志监控平台',
-  service: 'My-Service',
-  defaultLogLevel: 'WARN',
-  logsPerPage: 1000,
+  appTitle: '批量同步监控',
+  activeService: 'batch-sync',
 
-  routing: {
-    basePath: '/logs'
+  services: [
+    {
+      id: 'batch-sync',
+      displayName: '批量同步服务',
+      loki: {
+        fixedLabels: {
+          job: 'tasks',
+          service: 'Batch-Sync'
+        },
+        taskLabel: 'task_name'
+      }
+    }
+  ],
+
+  loki: {
+    apiBasePath: '/loki/api/v1'
   }
 }
 ```
 
-### 示例 2: 使用外部 Loki 服务器
+### 示例 2: 多服务配置
 ```javascript
 window.APP_CONFIG = {
+  appTitle: '企业日志监控平台',
+  activeService: 'batch-sync',
+
+  services: [
+    {
+      id: 'batch-sync',
+      displayName: '批量同步服务',
+      loki: {
+        fixedLabels: {
+          job: 'tasks',
+          service: 'Batch-Sync'
+        },
+        taskLabel: 'task_name'
+      },
+      defaultLogLevel: '',
+      logsPerPage: 500
+    },
+    {
+      id: 'data-service',
+      displayName: '数据服务',
+      loki: {
+        fixedLabels: {
+          job: 'api',
+          service: 'Data-Service'
+        },
+        taskLabel: 'endpoint'
+      },
+      defaultLogLevel: 'WARN',
+      logsPerPage: 1000
+    }
+  ],
+
+  loki: {
+    apiBasePath: '/loki/api/v1'
+  }
+}
+```
+
+### 示例 3: 使用外部 Loki 服务器和多标签筛选
+```javascript
+window.APP_CONFIG = {
+  appTitle: '生产环境监控',
+  activeService: 'my-service',
+
+  services: [
+    {
+      id: 'my-service',
+      displayName: '我的服务',
+      loki: {
+        // 固定的标签筛选器（包括服务名、环境、集群等）
+        fixedLabels: {
+          service: 'My-Service',
+          env: 'production',
+          cluster: 'k8s-prod-01'
+        },
+        taskLabel: 'job_name'
+      }
+    }
+  ],
+
   loki: {
     apiBasePath: '/loki/api/v1',
     wsProtocol: 'wss',
     wsHost: 'loki.example.com:3100'
   }
 }
+// 查询示例: {service="My-Service", env="production", cluster="k8s-prod-01", job_name="xxx"}
 ```
 
-### 示例 3: 完整配置
+### 示例 4: 完整配置
 ```javascript
 window.APP_CONFIG = {
-  pageTitle: '数据中台日志监控',
-  appName: '数据中台监控平台',
-  service: 'Batch-Sync',
-  defaultLogLevel: '',
-  logsPerPage: 500,
+  pageTitle: '数据中台日志监控',  // 浏览器标签页标题
+  appTitle: '数据中台监控平台',   // 导航栏显示标题
+
+  activeService: 'batch-sync',
+
+  services: [
+    {
+      id: 'batch-sync',
+      displayName: '批量同步服务',
+      loki: {
+        fixedLabels: {
+          job: 'tasks',
+          service: 'Batch-Sync'
+        },
+        taskLabel: 'task_name'
+      },
+      defaultLogLevel: '',
+      logsPerPage: 500
+    },
+    {
+      id: 'data-service',
+      displayName: '数据服务',
+      loki: {
+        fixedLabels: {
+          job: 'api',
+          service: 'Data-Service'
+        },
+        taskLabel: 'endpoint'
+      },
+      defaultLogLevel: 'WARN',
+      logsPerPage: 1000
+    }
+  ],
 
   loki: {
     apiBasePath: '/loki/api/v1',

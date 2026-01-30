@@ -5,34 +5,90 @@
  * It will be served as a static file from the public directory.
  */
 window.APP_CONFIG = {
-  // Page title (optional, leave empty to use default "Loki Log Viewer")
+  // Page title (browser tab, optional, leave empty to use default "Loki Log Viewer")
   pageTitle: '',
 
-  // Application name shown in navbar (optional, leave empty to hide)
-  appName: '',
+  // Active service ID (which service to monitor on startup)
+  activeService: 'batch-sync',
 
-  // Service to monitor (corresponds to Loki label: service="xxx")
-  service: 'Batch-Sync',
+  // Services configuration
+  // Each service has its own complete configuration
+  services: [
+    {
+      id: 'batch-sync',
+      displayName: 'Batch-Sync Service',
+      loki: {
+        // API base path (default: '/loki/api/v1')
+        apiBasePath: '/loki/api/v1',
+        // WebSocket settings (optional, leave empty for auto-detection)
+        wsProtocol: '',  // 'ws' or 'wss', auto-detect if empty
+        wsHost: '',      // hostname:port, use window.location.host if empty
+        // Service-specific labels
+        fixedLabels: {
+          job: 'tasks',
+          service: 'Batch-Sync'
+        },
+        taskLabel: 'task_name'
+      },
+      defaultLogLevel: '',
+      logsPerPage: 500,
+      // WebSocket settings
+      websocket: {
+        maxReconnectAttempts: 5,
+        reconnectDelay: 3000,
+        initializationDelay: 2000  // Delay before monitoring starts (milliseconds)
+      },
+      // Alert settings
+      alert: {
+        newLogHighlightDuration: 3000  // milliseconds
+      },
+      // Query settings
+      query: {
+        defaultTimeRangeDays: 7  // Default: query logs from last 7 days
+      }
+    },
+    {
+      id: 'data-service',
+      displayName: 'Data Service',
+      loki: {
+        // API base path (default: '/loki/api/v1')
+        apiBasePath: '/loki/api/v1',
+        // WebSocket settings (optional, leave empty for auto-detection)
+        wsProtocol: '',  // 'ws' or 'wss', auto-detect if empty
+        wsHost: '',      // hostname:port, use window.location.host if empty
+        // Service-specific labels
+        fixedLabels: {
+          job: 'api',
+          service: 'Data-Service'
+        },
+        taskLabel: 'endpoint'
+      },
+      defaultLogLevel: 'WARN',
+      logsPerPage: 1000,
+      // WebSocket settings
+      websocket: {
+        maxReconnectAttempts: 5,
+        reconnectDelay: 3000,
+        initializationDelay: 2000  // Delay before monitoring starts (milliseconds)
+      },
+      // Alert settings
+      alert: {
+        newLogHighlightDuration: 3000  // milliseconds
+      },
+      // Query settings
+      query: {
+        defaultTimeRangeDays: 7  // Default: query logs from last 7 days
+      }
+    }
+  ],
 
-  // Default log level filter (empty string = show all)
-  defaultLogLevel: '',
-
-  // Logs per page
-  logsPerPage: 500,
-
-  // Loki API configuration
-  loki: {
-    // API base path (default: '/loki/api/v1')
-    apiBasePath: '/loki/api/v1',
-
-    // WebSocket settings (optional, leave empty for auto-detection)
-    wsProtocol: '',  // 'ws' or 'wss', auto-detect if empty
-    wsHost: ''       // hostname:port, use window.location.host if empty
-  },
+  // ============================================================
+  // GLOBAL CONFIGURATION (shared by all services)
+  // ============================================================
 
   // Routing configuration
   routing: {
-    basePath: '/logs'  // Base path for task routes (e.g., /logs/:taskName)
+    basePath: '/view'  // Base path for task routes (e.g., /logs/:serviceId/:taskName)
   },
 
   // Virtual scroll settings
@@ -40,17 +96,5 @@ window.APP_CONFIG = {
     estimatedItemHeight: 60,
     bufferSize: 10,
     loadMoreThreshold: 0.2  // Load more when scrolled to 20% from bottom
-  },
-
-  // WebSocket settings
-  websocket: {
-    maxReconnectAttempts: 5,
-    reconnectDelay: 3000,
-    initializationDelay: 2000  // Delay before monitoring starts (milliseconds)
-  },
-
-  // Alert settings
-  alert: {
-    newLogHighlightDuration: 3000  // milliseconds
   }
 }

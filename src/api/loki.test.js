@@ -15,6 +15,30 @@ vi.mock('axios')
 describe('loki.js', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Set default config for tests (multi-service format)
+    window.APP_CONFIG = {
+      activeService: 'batch-sync',
+      services: [
+        {
+          id: 'batch-sync',
+          displayName: 'Batch-Sync Service',
+          loki: {
+            fixedLabels: {
+              job: 'tasks',
+              service: 'Batch-Sync'
+            },
+            taskLabel: 'task_name'
+          }
+        }
+      ],
+      loki: {
+        apiBasePath: '/loki/api/v1'
+      }
+    }
+  })
+
+  afterEach(() => {
+    delete window.APP_CONFIG
   })
 
   describe('queryLogsWithCursor()', () => {
@@ -201,24 +225,40 @@ describe('loki.js', () => {
       expect(axios.get).toHaveBeenCalledWith('/loki/api/v1/label/task_name/values')
       expect(result).toEqual(['task-a', 'task-b'])
     })
+
+    it('should use custom task label from config', async () => {
+      window.APP_CONFIG.services[0].loki.taskLabel = 'job_name'
+
+      const mockResponse = {
+        data: {
+          data: ['job-a', 'job-b']
+        }
+      }
+
+      axios.get.mockResolvedValue(mockResponse)
+
+      const result = await getTaskNames()
+
+      expect(axios.get).toHaveBeenCalledWith('/loki/api/v1/label/job_name/values')
+      expect(result).toEqual(['job-a', 'job-b'])
+    })
   })
 
   describe('buildTaskQuery()', () => {
     it('should build basic query without task name', () => {
-      const query = buildTaskQuery(null, { service: 'Batch-Sync' })
+      const query = buildTaskQuery(null)
 
       expect(query).toBe('{job="tasks", service="Batch-Sync"}')
     })
 
     it('should build query with task name', () => {
-      const query = buildTaskQuery('my-task', { service: 'Batch-Sync' })
+      const query = buildTaskQuery('my-task')
 
       expect(query).toBe('{job="tasks", service="Batch-Sync", task_name="my-task"}')
     })
 
     it('should add ERROR level filter', () => {
       const query = buildTaskQuery('my-task', {
-        service: 'Batch-Sync',
         level: 'ERROR'
       })
 
@@ -227,7 +267,6 @@ describe('loki.js', () => {
 
     it('should add WARN level filter (includes ERROR and WARN)', () => {
       const query = buildTaskQuery('my-task', {
-        service: 'Batch-Sync',
         level: 'WARN'
       })
 
@@ -236,7 +275,6 @@ describe('loki.js', () => {
 
     it('should add INFO level filter (includes ERROR, WARN, INFO)', () => {
       const query = buildTaskQuery('my-task', {
-        service: 'Batch-Sync',
         level: 'INFO'
       })
 
@@ -245,17 +283,54 @@ describe('loki.js', () => {
 
     it('should add DEBUG level filter (includes all levels)', () => {
       const query = buildTaskQuery('my-task', {
-        service: 'Batch-Sync',
         level: 'DEBUG'
       })
 
       expect(query).toContain('| level=~"ERROR|WARN|INFO|DEBUG"')
     })
 
-    it('should default to Batch-Sync service', () => {
+    it('should use fixed labels from config', () => {
       const query = buildTaskQuery('my-task')
 
       expect(query).toContain('service="Batch-Sync"')
+      expect(query).toContain('job="tasks"')
+    })
+
+    it('should use custom fixed labels from config', () => {
+      window.APP_CONFIG.services[0].loki.fixedLabels = {
+        env: 'production',
+        app: 'MyApp'
+      }
+      window.APP_CONFIG.services[0].loki.taskLabel = 'job_name'
+
+      const query = buildTaskQuery('my-task')
+
+      expect(query).toBe('{env="production", app="MyApp", job_name="my-task"}')
+    })
+
+    it('should work with minimal fixed labels', () => {
+      window.APP_CONFIG.services[0].loki.fixedLabels = {
+        service: 'Batch-Sync'
+      }
+      window.APP_CONFIG.services[0].loki.taskLabel = 'task_name'
+
+      const query = buildTaskQuery('my-task')
+
+      expect(query).toBe('{service="Batch-Sync", task_name="my-task"}')
+    })
+
+    it('should support multiple fixed labels', () => {
+      window.APP_CONFIG.services[0].loki.fixedLabels = {
+        job: 'tasks',
+        env: 'production',
+        region: 'us-east-1',
+        service: 'Batch-Sync'
+      }
+      window.APP_CONFIG.services[0].loki.taskLabel = 'task_name'
+
+      const query = buildTaskQuery(null)
+
+      expect(query).toBe('{job="tasks", env="production", region="us-east-1", service="Batch-Sync"}')
     })
   })
 
