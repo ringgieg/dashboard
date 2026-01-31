@@ -93,7 +93,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, ArrowRight, DocumentCopy, Loading } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import { getConfig } from '../utils/config'
+import { getConfig } from '../../../utils/config'
 
 const props = defineProps({
   logs: { type: Array, required: true },

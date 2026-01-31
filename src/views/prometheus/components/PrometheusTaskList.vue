@@ -13,15 +13,29 @@
         size="small"
         @click="refreshTasks"
         class="refresh-button"
-        :disabled="store.loading"
+        :disabled="prometheusStore.loading"
       >
-        <el-icon :class="{ 'is-loading': store.loading }">
+        <el-icon :class="{ 'is-loading': prometheusStore.loading }">
           <Refresh />
         </el-icon>
       </el-button>
     </div>
 
-    <div class="task-list-content" v-loading="store.loading">
+    <div class="task-list-content" v-loading="prometheusStore.loading">
+      <!-- All Alerts Option -->
+      <div
+        class="task-item"
+        :class="{ 'is-selected': !route.params.taskName }"
+        @click="selectTask(null)"
+      >
+        <div class="task-info">
+          <span class="task-icon all-alerts">●</span>
+          <span class="task-name">全部告警</span>
+          <span class="alert-count">{{ prometheusStore.alertCounts.total }}</span>
+        </div>
+      </div>
+
+      <!-- Task List -->
       <div
         v-for="task in filteredTasks"
         :key="task.name"
@@ -37,19 +51,13 @@
           <span class="task-icon" :class="getTaskIconClass(task)">●</span>
           <span class="task-name">{{ task.name }}</span>
           <span
-            v-if="!task.existsInLoki"
-            class="not-in-loki-badge"
-            title="此任务在Loki中暂无日志"
+            v-if="!task.existsInPrometheus"
+            class="not-in-prometheus-badge"
+            title="此任务在Prometheus中暂无告警"
           >
-            无日志
+            无告警
           </span>
-          <span
-            v-if="store.getUnreadAlertCount(task.name) > 0"
-            class="unread-badge"
-            :class="{ 'is-unwatched': !task.watched }"
-          >
-            {{ store.getUnreadAlertCount(task.name) }}
-          </span>
+          <span class="alert-count">{{ getTaskAlertCount(task.name) }}</span>
         </div>
       </div>
 
@@ -59,7 +67,7 @@
     </div>
 
     <div class="task-list-footer">
-      <span class="task-count">共 {{ store.tasks.length }} 个任务</span>
+      <span class="task-count">共 {{ prometheusStore.tasks.length }} 个任务</span>
       <div class="footer-actions">
         <MuteButton v-if="kioskMode" size="small" />
         <el-button
@@ -107,11 +115,12 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useTaskStore } from '../stores/taskStore'
-import { useWsStore } from '../stores/wsStore'
-import { useServiceStore } from '../stores/serviceStore'
+import { usePrometheusStore } from '../../../stores/prometheusStore'
+import { useServiceStore } from '../../../stores/serviceStore'
 import { Search, Refresh, FullScreen } from '@element-plus/icons-vue'
-import MuteButton from './MuteButton.vue'
+import { filterAlerts } from '../../../api/prometheus'
+import { getPrometheusTaskLabel } from '../../../utils/config'
+import MuteButton from '../../../components/MuteButton.vue'
 
 // Props
 const props = defineProps({
@@ -123,8 +132,7 @@ const props = defineProps({
 
 const router = useRouter()
 const route = useRoute()
-const store = useTaskStore()
-const wsStore = useWsStore()
+const prometheusStore = usePrometheusStore()
 const serviceStore = useServiceStore()
 
 const searchQuery = ref('')
@@ -135,66 +143,57 @@ const contextMenuTask = ref(null)
 
 const filteredTasks = computed(() => {
   if (!searchQuery.value) {
-    return store.sortedTasks
+    return prometheusStore.sortedTasks
   }
   const query = searchQuery.value.toLowerCase()
-  return store.sortedTasks.filter(task =>
+  return prometheusStore.sortedTasks.filter(task =>
     task.name.toLowerCase().includes(query)
   )
 })
 
 function getTaskIconClass(task) {
   if (!task.watched) {
-    // 未关注：灰色
     return 'unwatched'
   }
 
-  // 被关注时：检查告警和连接状态
-  const hasUnreadAlerts = store.getUnreadAlertCount(task.name) > 0
-  const isConnected = wsStore.isConnected
+  // Get alert count for this task
+  const count = getTaskAlertCount(task.name)
 
-  if (hasUnreadAlerts || !isConnected) {
-    // 有告警或断开连接：红色
-    return 'alert'
+  if (count === 0) {
+    return 'normal'
   }
 
-  // 无告警且已连接：绿色
-  return 'connected'
+  // Check if any firing alerts
+  const taskLabel = getPrometheusTaskLabel()
+  const taskAlerts = filterAlerts(prometheusStore.alerts, { [taskLabel]: task.name })
+  const hasFiring = taskAlerts.some(alert => alert.state === 'firing')
+
+  return hasFiring ? 'has-firing' : 'has-pending'
+}
+
+function getTaskAlertCount(taskName) {
+  const taskLabel = getPrometheusTaskLabel()
+  const taskAlerts = filterAlerts(prometheusStore.alerts, { [taskLabel]: taskName })
+  return taskAlerts.length
 }
 
 function selectTask(taskName) {
-  // Clear unread alerts when entering task page
-  store.clearUnreadAlerts(taskName)
   const serviceId = serviceStore.getCurrentServiceId()
-  router.push(`/logs/${serviceId}/${taskName}`)
+  if (taskName) {
+    router.push(`/prometheus/${serviceId}/${taskName}`)
+  } else {
+    router.push(`/prometheus/${serviceId}`)
+  }
 }
 
 function refreshTasks() {
-  store.fetchTasks()
-}
-
-function enterKioskMode() {
-  // Add kiosk=1 query parameter
-  router.push({
-    path: route.path,
-    query: { ...route.query, kiosk: '1' }
-  })
-}
-
-function exitKioskMode() {
-  // Remove kiosk query parameter
-  const query = { ...route.query }
-  delete query.kiosk
-  router.push({
-    path: route.path,
-    query
-  })
+  prometheusStore.refresh()
 }
 
 function showContextMenu(event, task) {
+  contextMenuTask.value = task
   contextMenuX.value = event.clientX
   contextMenuY.value = event.clientY
-  contextMenuTask.value = task
   contextMenuVisible.value = true
 }
 
@@ -205,23 +204,34 @@ function closeContextMenu() {
 
 function toggleWatched() {
   if (contextMenuTask.value) {
-    store.toggleWatched(contextMenuTask.value.name)
+    prometheusStore.toggleTaskWatch(contextMenuTask.value.name)
   }
   closeContextMenu()
 }
 
-function handleKeydown(event) {
-  if (event.key === 'Escape') {
+function enterKioskMode() {
+  router.push({ query: { ...route.query, kiosk: '1' } })
+}
+
+function exitKioskMode() {
+  const query = { ...route.query }
+  delete query.kiosk
+  router.push({ query })
+}
+
+// Close context menu on click outside
+function handleClickOutside() {
+  if (contextMenuVisible.value) {
     closeContextMenu()
   }
 }
 
 onMounted(() => {
-  document.addEventListener('keydown', handleKeydown)
+  document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -231,7 +241,7 @@ onUnmounted(() => {
   flex-direction: column;
   height: 100%;
   background: var(--el-bg-color);
-  border-right: 1px solid var(--el-border-color-lighter);
+  border-right: 1px solid var(--el-border-color-light);
 }
 
 .task-list-header {
@@ -239,7 +249,8 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   padding: 16px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-light);
 }
 
 .search-input {
@@ -250,128 +261,97 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.refresh-button .is-loading {
-  animation: spin 1s linear infinite;
-}
-
 .task-list-content {
   flex: 1;
   overflow-y: auto;
+  padding: 8px;
 }
 
 .task-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   padding: 12px 16px;
+  margin-bottom: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  border-bottom: 1px solid var(--el-fill-color-light);
-  user-select: none;
-  transition: all 0.15s ease;
+  transition: all 0.2s ease;
+  background: var(--el-bg-color);
+  border: 1px solid transparent;
 }
 
 .task-item:hover {
-  background: var(--el-fill-color-lighter);
+  background: var(--el-fill-color-light);
+  border-color: var(--el-border-color);
 }
 
 .task-item.is-selected {
   background: var(--el-color-primary-light-9);
-  border-left: 3px solid var(--el-color-primary);
-  padding-left: 13px;
+  border-color: var(--el-color-primary);
 }
 
 .task-item.is-unwatched {
-  color: var(--el-text-color-secondary);
+  opacity: 0.6;
 }
 
 .task-info {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
+  gap: 8px;
 }
 
 .task-icon {
-  font-size: 10px;
-  transition: color 0.15s ease;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.task-icon.all-alerts {
+  color: var(--el-color-primary);
 }
 
 .task-icon.unwatched {
-  color: var(--el-border-color);
+  color: var(--el-text-color-placeholder);
 }
 
-.task-icon.connected {
+.task-icon.normal {
   color: var(--el-color-success);
 }
 
-.task-icon.alert {
-  color: var(--el-color-danger);
-  animation: pulse-icon 2s ease-in-out infinite;
+.task-icon.has-pending {
+  color: var(--el-color-warning);
 }
 
-@keyframes pulse-icon {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+.task-icon.has-firing {
+  color: var(--el-color-danger);
 }
 
 .task-name {
+  flex: 1;
   font-size: 14px;
   font-weight: 500;
-  white-space: nowrap;
+  color: var(--el-text-color-primary);
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
-  color: var(--el-text-color-primary);
+  white-space: nowrap;
 }
 
-.task-item.is-unwatched .task-name {
-  color: var(--el-text-color-secondary);
-  font-weight: 400;
-}
-
-.not-in-loki-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 18px;
-  padding: 0 6px;
-  background: var(--el-fill-color-dark);
-  color: var(--el-text-color-secondary);
-  border-radius: 9px;
-  font-size: 10px;
-  font-weight: 500;
-  margin-left: 6px;
-  border: 1px solid var(--el-border-color);
-}
-
-.unread-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  background: var(--el-color-danger);
-  color: var(--el-bg-color);
-  border-radius: 10px;
+.not-in-prometheus-badge {
   font-size: 11px;
-  font-weight: 600;
-  margin-left: auto;
+  padding: 2px 6px;
+  background: var(--el-fill-color);
+  color: var(--el-text-color-secondary);
+  border-radius: 4px;
 }
 
-.unread-badge.is-unwatched {
-  background: var(--el-text-color-secondary);
-  color: var(--el-bg-color);
+.alert-count {
+  font-size: 12px;
+  padding: 2px 8px;
+  background: var(--el-color-info-light-9);
+  color: var(--el-color-info);
+  border-radius: 10px;
+  font-weight: 600;
 }
 
 .no-tasks {
-  padding: 48px 20px;
   text-align: center;
+  padding: 32px 16px;
   color: var(--el-text-color-secondary);
   font-size: 14px;
 }
@@ -380,65 +360,68 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
   padding: 12px 16px;
-  border-top: 1px solid var(--el-border-color-lighter);
-  font-size: 13px;
-  color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-lighter);
+  background: var(--el-bg-color);
+  border-top: 1px solid var(--el-border-color-light);
 }
 
 .task-count {
-  flex: 1;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .footer-actions {
   display: flex;
-  align-items: center;
   gap: 8px;
 }
 
 .kiosk-button {
-  padding: 4px 8px;
+  padding: 8px;
 }
 
 .kiosk-button.kiosk-active {
-  background-color: var(--el-color-primary);
-  color: white;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 /* Context Menu */
-.context-menu-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: 999;
-}
-
 .context-menu {
   position: fixed;
-  z-index: 1000;
-  min-width: 140px;
-  background: var(--el-bg-color);
-  border: 1px solid var(--el-border-color-light);
-  border-radius: 8px;
-  padding: 4px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 9999;
+  background: var(--el-bg-color-overlay);
+  border: 1px solid var(--el-border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  min-width: 120px;
 }
 
 .context-menu-item {
-  padding: 8px 12px;
+  padding: 10px 16px;
   cursor: pointer;
+  transition: background 0.2s ease;
+  color: var(--el-text-color-primary);
   font-size: 14px;
-  color: var(--el-text-color-regular);
-  border-radius: 6px;
-  transition: all 0.15s ease;
 }
 
 .context-menu-item:hover {
   background: var(--el-fill-color-light);
-  color: var(--el-text-color-primary);
+}
+
+.context-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9998;
 }
 </style>

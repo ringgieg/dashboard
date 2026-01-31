@@ -3,17 +3,17 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import LogViewer from './LogViewer.vue'
-import * as loki from '../api/loki'
-import { useWsStore } from '../stores/wsStore'
+import * as loki from '../../../api/loki'
+import { useWsStore } from '../../../stores/wsStore'
 
 // Mock loki API
-vi.mock('../api/loki', () => ({
+vi.mock('../../../api/loki', () => ({
   queryTaskLogs: vi.fn(),
   filterLogsByLevel: vi.fn((logs, level) => logs)
 }))
 
 // Mock config
-vi.mock('../utils/config', () => ({
+vi.mock('../../../utils/config', () => ({
   getConfig: vi.fn((key, fallback) => {
     const config = {
       'alert.newLogHighlightDuration': 3000,

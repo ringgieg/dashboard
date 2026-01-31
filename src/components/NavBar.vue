@@ -20,7 +20,12 @@
               :command="service.id"
               :disabled="service.id === serviceStore.getCurrentServiceId()"
             >
-              {{ service.displayName }}
+              <span class="service-item">
+                <span>{{ service.displayName }}</span>
+                <el-icon v-if="service.type === 'external-link'" class="external-link-icon">
+                  <TopRight />
+                </el-icon>
+              </span>
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -37,41 +42,38 @@
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
 import { useServiceStore } from '../stores/serviceStore'
-import { useWsStore } from '../stores/wsStore'
-import { useTaskStore } from '../stores/taskStore'
-import { Folder, ArrowDown } from '@element-plus/icons-vue'
+import { Folder, ArrowDown, TopRight } from '@element-plus/icons-vue'
+import { isExternalLinkService, getExternalUrl, getServiceType } from '../utils/config'
 
-const router = useRouter()
 const serviceStore = useServiceStore()
-const wsStore = useWsStore()
-const taskStore = useTaskStore()
 
-async function handleServiceSwitch(serviceId) {
+function handleServiceSwitch(serviceId) {
   if (serviceId === serviceStore.getCurrentServiceId()) {
     return
   }
 
-  console.log(`Switching to service: ${serviceId}`)
+  // Check if this is an external link service
+  if (isExternalLinkService(serviceId)) {
+    const externalUrl = getExternalUrl(serviceId)
+    if (externalUrl) {
+      console.log(`[NavBar] Opening external link: ${externalUrl}`)
+      window.open(externalUrl, '_blank')
+    }
+    return
+  }
 
-  // 1. Close WebSocket connection
-  wsStore.disconnect()
+  console.log(`[NavBar] Switching to service: ${serviceId}`)
 
-  // 2. Switch service
-  serviceStore.setCurrentService(serviceId)
+  const newServiceType = getServiceType(serviceId)
 
-  // 3. Clear task store
-  taskStore.clearTasks()
-
-  // 4. Navigate to new service route
-  await router.push(`/logs/${serviceId}`)
-
-  // 5. Reload tasks for new service
-  await taskStore.loadTasks()
-
-  // 6. Reconnect WebSocket (will use new service config)
-  wsStore.connect()
+  // Navigate to new service with full page reload
+  // This ensures all state is cleared and components are freshly mounted
+  if (newServiceType === 'prometheus-multitask') {
+    window.location.href = `/prometheus/${serviceId}`
+  } else if (newServiceType === 'loki-multitask') {
+    window.location.href = `/logs/${serviceId}`
+  }
 }
 </script>
 
@@ -138,5 +140,19 @@ async function handleServiceSwitch(serviceId) {
 .arrow-icon {
   font-size: 12px;
   margin-left: 4px;
+}
+
+.service-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.external-link-icon {
+  font-size: 14px;
+  color: var(--el-color-primary);
+  opacity: 0.7;
 }
 </style>

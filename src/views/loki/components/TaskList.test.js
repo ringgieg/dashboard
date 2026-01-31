@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import TaskList from './TaskList.vue'
-import { useTaskStore } from '../stores/taskStore'
+import { useTaskStore } from '../../../stores/taskStore'
 
 // Mock Element Plus
 vi.mock('element-plus', () => ({

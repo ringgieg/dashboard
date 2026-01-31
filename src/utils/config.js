@@ -285,3 +285,148 @@ export function getLogLevelRegex(level) {
   const levels = mapping[level] || [level]
   return levels.join('|')
 }
+
+/**
+ * Get service type
+ * @param {string} serviceId - Service ID (optional, defaults to current service)
+ * @returns {string} Service type ('loki-multitask' or 'prometheus-multitask')
+ */
+export function getServiceType(serviceId = null) {
+  const id = serviceId || getCurrentServiceId()
+  const service = getServiceById(id)
+  return service?.type || 'loki-multitask' // Default to loki-multitask for backward compatibility
+}
+
+/**
+ * Get current service type
+ * @returns {string} Service type ('loki-multitask' or 'prometheus-multitask')
+ */
+export function getCurrentServiceType() {
+  return getServiceType(getCurrentServiceId())
+}
+
+/**
+ * Check if current service is Loki type
+ * @returns {boolean} True if current service is loki-multitask
+ */
+export function isLokiService() {
+  return getCurrentServiceType() === 'loki-multitask'
+}
+
+/**
+ * Check if current service is Prometheus type
+ * @returns {boolean} True if current service is prometheus-multitask
+ */
+export function isPrometheusService() {
+  return getCurrentServiceType() === 'prometheus-multitask'
+}
+
+/**
+ * Check if service is external link type
+ * @param {string} serviceId - Service ID (optional, defaults to current service)
+ * @returns {boolean} True if service is external-link
+ */
+export function isExternalLinkService(serviceId = null) {
+  const id = serviceId || getCurrentServiceId()
+  const type = getServiceType(id)
+  return type === 'external-link'
+}
+
+/**
+ * Get external URL for a service
+ * @param {string} serviceId - Service ID
+ * @returns {string|null} External URL or null if not an external link service
+ */
+export function getExternalUrl(serviceId) {
+  const service = getServiceById(serviceId)
+  if (!service || service.type !== 'external-link') {
+    return null
+  }
+  return service.externalUrl || null
+}
+
+// ============================================================
+// Prometheus Configuration Helpers
+// ============================================================
+
+/**
+ * Get Prometheus API base path for current service
+ * @returns {string} Prometheus API base path (default: '/prometheus/api/v1')
+ */
+export function getPrometheusApiBasePath() {
+  return getCurrentServiceConfig('prometheus.apiBasePath', '/prometheus/api/v1')
+}
+
+/**
+ * Get Alertmanager API base path for current service
+ * @returns {string} Alertmanager API base path (default: '/alertmanager/api/v2')
+ */
+export function getAlertmanagerApiBasePath() {
+  return getCurrentServiceConfig('prometheus.alertmanagerBasePath', '/alertmanager/api/v2')
+}
+
+/**
+ * Get Prometheus task label for current service
+ * @returns {string} Task label (default: 'job')
+ */
+export function getPrometheusTaskLabel() {
+  return getCurrentServiceConfig('prometheus.taskLabel', 'job')
+}
+
+/**
+ * Get Prometheus fixed labels for current service
+ * @returns {Object} Fixed labels for filtering (default: {})
+ */
+export function getPrometheusFixedLabels() {
+  return getCurrentServiceConfig('prometheus.fixedLabels', {})
+}
+
+/**
+ * Get Prometheus column configurations for current service
+ * @returns {Array} Column configurations (default: [])
+ */
+export function getPrometheusColumns() {
+  return getCurrentServiceConfig('prometheus.columns', [])
+}
+
+/**
+ * Get Prometheus polling interval for current service
+ * @returns {number} Polling interval in milliseconds (default: 5000)
+ */
+export function getPrometheusPollingInterval() {
+  return getCurrentServiceConfig('prometheus.polling.interval', 5000)
+}
+
+/**
+ * Get Prometheus max retries for current service
+ * @returns {number} Max retries (default: 3)
+ */
+export function getPrometheusMaxRetries() {
+  return getCurrentServiceConfig('prometheus.maxRetries', 3)
+}
+
+/**
+ * Get Prometheus retry base delay for current service
+ * @returns {number} Retry base delay in milliseconds (default: 1000)
+ */
+export function getPrometheusRetryBaseDelay() {
+  return getCurrentServiceConfig('prometheus.retryBaseDelay', 1000)
+}
+
+/**
+ * Check if DeadManSwitch is enabled for current service
+ * DeadManSwitch is enabled if alertName is configured (not empty)
+ * @returns {boolean} True if DeadManSwitch is enabled
+ */
+export function isDeadManSwitchEnabled() {
+  const alertName = getCurrentServiceConfig('prometheus.deadManSwitch.alertName', '')
+  return alertName !== null && alertName !== undefined && alertName.trim() !== ''
+}
+
+/**
+ * Get DeadManSwitch alert name for current service
+ * @returns {string} DeadManSwitch alert name (default: '')
+ */
+export function getDeadManSwitchAlertName() {
+  return getCurrentServiceConfig('prometheus.deadManSwitch.alertName', '')
+}

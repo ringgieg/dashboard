@@ -13,7 +13,7 @@ window.APP_CONFIG = {
   pageTitle: 'Grafana Stack Dashboard',
 
   // 活动服务 ID（启动时监控哪个服务，可选，默认值: 第一个服务的 ID）
-  activeService: 'batch-sync',
+  activeService: 'prometheus-alerts',
 
   // 服务配置（必需，至少配置一个服务）
   // 每个服务都有自己的完整配置
@@ -22,6 +22,7 @@ window.APP_CONFIG = {
       // ========== 服务基本信息 ==========
       id: 'batch-sync',                           // 必需：服务唯一标识符
       displayName: 'Batch-Sync Service',          // 必需：服务显示名称
+      type: 'loki-multitask', 
 
       // ========== Loki 连接配置 ==========
       loki: {
@@ -85,6 +86,7 @@ window.APP_CONFIG = {
       // ========== 服务基本信息 ==========
       id: 'data-service',                         // 必需：服务唯一标识符
       displayName: 'Data Service',                // 必需：服务显示名称
+      type: 'loki-multitask', 
 
       // ========== Loki 连接配置 ==========
       loki: {
@@ -134,6 +136,75 @@ window.APP_CONFIG = {
           'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
         }
       }
+    },
+    {
+      // ========== Prometheus 告警监控服务 ==========
+      id: 'prometheus-alerts',                    // 必需：服务唯一标识符
+      displayName: 'Prometheus Alerts',           // 必需：服务显示名称
+      type: 'prometheus-multitask',               // 必需：服务类型
+
+      // ========== Prometheus 连接配置 ==========
+      prometheus: {
+        // API 配置（使用本地 Prometheus 实例）
+        apiBasePath: 'http://127.0.0.1:9090/api/v1',       // Prometheus API 地址
+        alertmanagerBasePath: 'http://127.0.0.1:9093/api/v2', // Alertmanager API 地址（可选）
+
+        // 任务标签（左侧任务列表）
+        taskLabel: 'job',                         // 可选，默认值：'job'
+
+        // 固定过滤标签（可选）
+        // 例如：只显示特定环境的告警
+        fixedLabels: {                            // 可选，默认值：{}
+          // env: 'production'                    // 取消注释以过滤特定环境
+        },
+
+        // 监控链路配置（E2E 监控链路健康检查）
+        // 配置 alertName 即为启用，不配置或留空即为禁用
+        deadManSwitch: {
+          alertName: 'PrometheusAlertmanagerE2eDeadManSwitch'  // 监控链路告警名称（此告警持续 firing 表示监控链路正常）
+        },
+
+        // 层级配置（右侧面板）
+        // 如果为空数组 []，则显示扁平的告警列表
+        // 如果配置了 columns，则按层级显示（Column → Grid → Item）
+        columns: [                                // 可选，默认值：[]
+          {
+            label: 'instance',                    // Column 层级的 label
+            grids: {
+              label: 'alertname',                 // Grid 层级的 label
+              items: {
+                label: 'severity'                 // Item 层级的 label
+              }
+            }
+          }
+        ],
+
+        // 扁平显示示例（取消注释下面这行并注释掉上面的 columns 配置）
+        // columns: [],
+
+        // 轮询配置
+        polling: {
+          interval: 5000                          // 可选，默认值：5000（轮询间隔，毫秒）
+        },
+
+        // 重试设置
+        maxRetries: 3,                            // 可选，默认值：3
+        retryBaseDelay: 1000                      // 可选，默认值：1000
+      }
+    },
+    {
+      // ========== 外部链接服务（新窗口打开）==========
+      id: 'grafana-dashboard',                    // 必需：服务唯一标识符
+      displayName: 'Grafana 仪表板',              // 必需：服务显示名称
+      type: 'external-link',                      // 必需：服务类型（external-link）
+      externalUrl: 'http://127.0.0.1:3000'       // 必需：外部链接 URL（Grafana 默认端口 3000）
+    },
+    {
+      // ========== 外部链接服务示例 2 ==========
+      id: 'alertmanager-ui',                      // 必需：服务唯一标识符
+      displayName: 'Alertmanager UI',             // 必需：服务显示名称
+      type: 'external-link',                      // 必需：服务类型
+      externalUrl: 'http://127.0.0.1:9093'       // 必需：Alertmanager UI URL
     }
   ],
 

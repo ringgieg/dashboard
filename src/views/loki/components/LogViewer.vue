@@ -58,10 +58,10 @@
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Loading } from '@element-plus/icons-vue'
-import { queryTaskLogs, filterLogsByLevel } from '../api/loki'
-import { useWsStore } from '../stores/wsStore'
-import { useTaskStore } from '../stores/taskStore'
-import { getCurrentServiceConfig } from '../utils/config'
+import { queryTaskLogs, filterLogsByLevel } from '../../../api/loki'
+import { useWsStore } from '../../../stores/wsStore'
+import { useTaskStore } from '../../../stores/taskStore'
+import { getCurrentServiceConfig } from '../../../utils/config'
 import VirtualLogList from './VirtualLogList.vue'
 
 const route = useRoute()

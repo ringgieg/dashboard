@@ -1,29 +1,49 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getCurrentServiceId } from '../utils/config'
+import { getCurrentServiceId, getServiceType } from '../utils/config'
+import LokiMultitaskMode from '../views/loki/LokiMultitaskMode.vue'
+import PrometheusMultitaskMode from '../views/prometheus/PrometheusMultitaskMode.vue'
 
-const basePath = '/logs'
-
-// Dummy component for routes (App.vue handles all rendering)
-const RouteView = { template: '<div></div>' }
+const logsBasePath = '/logs'
+const prometheusBasePath = '/prometheus'
 
 const routes = [
   {
     path: '/',
     redirect: () => {
       const serviceId = getCurrentServiceId()
-      return `${basePath}/${serviceId}`
+      const serviceType = getServiceType(serviceId)
+
+      if (serviceType === 'prometheus-multitask') {
+        return `${prometheusBasePath}/${serviceId}`
+      } else {
+        return `${logsBasePath}/${serviceId}`
+      }
     }
   },
+  // Loki routes
   {
-    path: `${basePath}/:serviceId`,
+    path: `${logsBasePath}/:serviceId`,
     name: 'service-logs',
-    component: RouteView,
+    component: LokiMultitaskMode,
     props: true
   },
   {
-    path: `${basePath}/:serviceId/:taskName`,
+    path: `${logsBasePath}/:serviceId/:taskName`,
     name: 'service-task-logs',
-    component: RouteView,
+    component: LokiMultitaskMode,
+    props: true
+  },
+  // Prometheus routes
+  {
+    path: `${prometheusBasePath}/:serviceId`,
+    name: 'service-prometheus',
+    component: PrometheusMultitaskMode,
+    props: true
+  },
+  {
+    path: `${prometheusBasePath}/:serviceId/:taskName`,
+    name: 'service-task-prometheus',
+    component: PrometheusMultitaskMode,
     props: true
   }
 ]
