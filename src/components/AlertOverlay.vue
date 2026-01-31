@@ -7,12 +7,26 @@
   >
     <div class="alert-background"></div>
   </div>
+
+  <!-- Unmute Warning Overlay -->
+  <div
+    v-if="alertStore.justUnmutedFromPermanent"
+    class="unmute-warning-overlay"
+    @click="alertStore.dismissUnmuteWarning"
+  >
+    <div class="unmute-warning-background"></div>
+    <div class="unmute-warning-icon">
+      <el-icon :size="80"><MuteNotification /></el-icon>
+      <div class="unmute-warning-text">已取消永久静音</div>
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { watch, ref, onUnmounted } from 'vue'
 import { useAlertStore } from '../stores/alertStore'
 import { playAlertSound } from '../utils/audio'
+import { BellFilled } from '@element-plus/icons-vue'
 
 const alertStore = useAlertStore()
 const soundIntervalId = ref(null)
@@ -87,6 +101,68 @@ onUnmounted(() => {
   }
   50% {
     opacity: 0.7;
+  }
+}
+
+/* Unmute Warning Overlay */
+.unmute-warning-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9998;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.unmute-warning-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  background-color: rgba(255, 0, 0, 0.15);
+  animation: pulse-unmute 1s ease-in-out infinite;
+}
+
+.unmute-warning-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #f56c6c;
+  text-align: center;
+  pointer-events: none;
+  animation: fade-in 0.3s ease-out;
+}
+
+.unmute-warning-text {
+  margin-top: 16px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #f56c6c;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes pulse-unmute {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 </style>

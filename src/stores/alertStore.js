@@ -9,8 +9,12 @@ export const useAlertStore = defineStore('alert', () => {
   const hasAlert = ref(false)
   const alertReasons = ref([])
 
-  // Mute state (timestamp in milliseconds)
-  const muteUntil = ref(loadMuteState())
+  // Mute state (timestamp in milliseconds, -1 for permanent mute)
+  // Initialize to 0, will be loaded after serviceStore is ready
+  const muteUntil = ref(0)
+
+  // Just unmuted from permanent state (for warning display)
+  const justUnmutedFromPermanent = ref(false)
 
   // Timer for checking mute expiration (兜底机制)
   let muteCheckTimer = null
@@ -28,6 +32,10 @@ export const useAlertStore = defineStore('alert', () => {
       const saved = localStorage.getItem(getStorageKey())
       if (saved) {
         const timestamp = parseInt(saved, 10)
+        // -1 means permanent mute
+        if (timestamp === -1) {
+          return -1
+        }
         // Only restore if still in the future
         if (timestamp > Date.now()) {
           return timestamp
@@ -42,7 +50,7 @@ export const useAlertStore = defineStore('alert', () => {
   // Save mute state to localStorage
   function saveMuteState() {
     try {
-      if (muteUntil.value > 0) {
+      if (muteUntil.value === -1 || muteUntil.value > 0) {
         localStorage.setItem(getStorageKey(), muteUntil.value.toString())
       } else {
         localStorage.removeItem(getStorageKey())
@@ -54,7 +62,7 @@ export const useAlertStore = defineStore('alert', () => {
 
   // Check if currently muted
   const isMuted = computed(() => {
-    return muteUntil.value > Date.now()
+    return muteUntil.value === -1 || muteUntil.value > Date.now()
   })
 
   /**
@@ -134,32 +142,60 @@ export const useAlertStore = defineStore('alert', () => {
 
   /**
    * Set mute duration
-   * @param {number} minutes - Duration in minutes (0 to unmute)
+   * @param {number} minutes - Duration in minutes (0 to unmute, -1 for permanent mute)
    */
   function setMute(minutes) {
     if (minutes === 0) {
+      // Unmute
       muteUntil.value = 0
       stopMuteCheckTimer()
+      console.log('Alert unmuted')
+    } else if (minutes === -1) {
+      // Permanent mute
+      muteUntil.value = -1
+      justUnmutedFromPermanent.value = false
+      stopMuteCheckTimer()
+      console.log('Alert permanently muted')
     } else {
+      // Timed mute
+      justUnmutedFromPermanent.value = false
       muteUntil.value = Date.now() + minutes * 60 * 1000
       startMuteCheckTimer() // 启动兜底定时器
+      console.log(`Alert muted for ${minutes} minutes`)
     }
     saveMuteState()
-    console.log(minutes === 0 ? 'Alert unmuted' : `Alert muted for ${minutes} minutes`)
+  }
+
+  /**
+   * Dismiss the unmute warning
+   */
+  function dismissUnmuteWarning() {
+    justUnmutedFromPermanent.value = false
   }
 
   /**
    * Get remaining mute time in minutes
+   * @returns {number} Minutes remaining, or -1 for permanent mute
    */
   function getRemainingMuteMinutes() {
+    if (muteUntil.value === -1) return -1
     if (!isMuted.value) return 0
     return Math.ceil((muteUntil.value - Date.now()) / 60000)
   }
 
-  // Initialize: start timer if muted state was restored from localStorage
-  if (muteUntil.value > Date.now()) {
-    startMuteCheckTimer()
-    console.log('Restored mute state, starting check timer (恢复静默状态，启动兜底定时器)')
+  /**
+   * Initialize store - must be called after serviceStore is ready
+   * Loads mute state from localStorage for the current service
+   */
+  function initialize() {
+    // Load mute state for current service
+    muteUntil.value = loadMuteState()
+
+    // Start timer if muted state was restored from localStorage
+    if (muteUntil.value > Date.now()) {
+      startMuteCheckTimer()
+      console.log('Restored mute state, starting check timer (恢复静默状态，启动兜底定时器)')
+    }
   }
 
   return {
@@ -168,13 +204,16 @@ export const useAlertStore = defineStore('alert', () => {
     alertReasons,
     isMuted,
     muteUntil,
+    justUnmutedFromPermanent,
 
     // Actions
+    initialize,
     triggerAlert,
     dismissAlert,
     removeAlertReason,
     setMute,
     getRemainingMuteMinutes,
-    checkMuteExpiration // 暴露手动检查方法
+    checkMuteExpiration, // 暴露手动检查方法
+    dismissUnmuteWarning
   }
 })

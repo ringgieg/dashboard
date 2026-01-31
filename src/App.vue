@@ -23,6 +23,7 @@ import { useRoute } from 'vue-router'
 import { useServiceStore } from './stores/serviceStore'
 import { useTaskStore } from './stores/taskStore'
 import { useWsStore } from './stores/wsStore'
+import { useAlertStore } from './stores/alertStore'
 import NavBar from './components/NavBar.vue'
 import TaskList from './components/TaskList.vue'
 import LogViewer from './components/LogViewer.vue'
@@ -33,6 +34,7 @@ const route = useRoute()
 const serviceStore = useServiceStore()
 const taskStore = useTaskStore()
 const wsStore = useWsStore()
+const alertStore = useAlertStore()
 
 // Check if kiosk mode is enabled via URL parameter
 const isKioskMode = computed(() => route.query.kiosk === '1')
@@ -40,6 +42,9 @@ const isKioskMode = computed(() => route.query.kiosk === '1')
 onMounted(async () => {
   // Initialize service store first (sets up config getters)
   serviceStore.initialize()
+
+  // Initialize alert store after service store is ready
+  alertStore.initialize()
 
   // Then initialize task store and WebSocket
   await taskStore.initialize()

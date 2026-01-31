@@ -1,10 +1,16 @@
 <template>
   <el-dropdown @command="handleMuteCommand" trigger="click" placement="bottom-end">
-    <el-button :type="alertStore.isMuted ? 'warning' : 'default'" :size="size">
-      <el-icon><Bell /></el-icon>
-      <span>静默设置</span>
+    <el-button
+      :type="alertStore.muteUntil === -1 ? 'danger' : (alertStore.isMuted ? 'warning' : 'default')"
+      :size="size"
+    >
+      <el-icon>
+        <MuteNotification v-if="alertStore.muteUntil === -1" />
+        <Bell v-else />
+      </el-icon>
+      <span>{{ alertStore.muteUntil === -1 ? '永久静音' : '静默设置' }}</span>
       <el-badge
-        v-if="alertStore.isMuted"
+        v-if="alertStore.isMuted && alertStore.muteUntil !== -1"
         :value="alertStore.getRemainingMuteMinutes() + 'm'"
         class="mute-badge"
       />
@@ -47,6 +53,10 @@
           <el-icon><Clock /></el-icon>
           <span>静默 10 小时</span>
         </el-dropdown-item>
+        <el-dropdown-item divided command="-1">
+          <el-icon><BellFilled /></el-icon>
+          <span>永久静默</span>
+        </el-dropdown-item>
       </el-dropdown-menu>
     </template>
   </el-dropdown>
@@ -54,7 +64,7 @@
 
 <script setup>
 import { useAlertStore } from '../stores/alertStore'
-import { Bell, Clock, CircleClose } from '@element-plus/icons-vue'
+import { Bell, BellFilled, Clock, CircleClose, MuteNotification } from '@element-plus/icons-vue'
 
 // Props
 const props = defineProps({
