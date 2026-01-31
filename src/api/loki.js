@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getConfig, getCurrentServiceConfig } from '../utils/config'
+import { getConfig, getCurrentServiceConfig, getLogLevelRegex, getLogLevelOrder } from '../utils/config'
 
 // Use nginx proxy for WebSocket connections
 // Automatically uses wss:// for HTTPS and ws:// for HTTP
@@ -98,7 +98,6 @@ export async function queryLogsWithCursor(query, options = {}) {
     const currentRequest = retryWithBackoff(requestFn)
     pendingRequests.set(requestKey, currentRequest)
     const response = await currentRequest
-    pendingRequests.delete(requestKey)
 
     const result = parseLogResponse(response.data, direction)
 
@@ -114,9 +113,11 @@ export async function queryLogsWithCursor(query, options = {}) {
       hasMore: result.logs.length >= limit
     }
   } catch (error) {
-    pendingRequests.delete(requestKey)
     console.error('Error querying logs with cursor:', error)
     throw error
+  } finally {
+    // Always clean up pending request to prevent memory leak
+    pendingRequests.delete(requestKey)
   }
 }
 
@@ -298,13 +299,7 @@ export function buildTaskQuery(taskName, options = {}) {
 
   // Level works as threshold: INFO shows ERROR, WARN, INFO
   if (level) {
-    const levelMap = {
-      'ERROR': 'ERROR',
-      'WARN': 'ERROR|WARN',
-      'INFO': 'ERROR|WARN|INFO',
-      'DEBUG': 'ERROR|WARN|INFO|DEBUG'
-    }
-    const levelRegex = levelMap[level] || level
+    const levelRegex = getLogLevelRegex(level)
     query += ` | level=~"${levelRegex}"`
   }
 
@@ -364,7 +359,7 @@ function extractLevel(line) {
 export function filterLogsByLevel(logs, level) {
   if (!level) return logs
 
-  const levelOrder = ['ERROR', 'WARN', 'INFO', 'DEBUG']
+  const levelOrder = getLogLevelOrder()
   const selectedIndex = levelOrder.indexOf(level)
 
   if (selectedIndex === -1) return logs

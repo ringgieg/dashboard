@@ -52,6 +52,7 @@ describe('alertStore', () => {
       // Clear and recreate pinia to trigger store initialization
       setActivePinia(createPinia())
       const newStore = useAlertStore()
+      newStore.initialize()
 
       expect(newStore.isMuted).toBe(true)
       expect(newStore.muteUntil).toBe(futureTime)
@@ -260,6 +261,7 @@ describe('alertStore', () => {
       // Recreate store (should only load test-service's mute)
       setActivePinia(createPinia())
       const newStore = useAlertStore()
+      newStore.initialize()
 
       expect(newStore.isMuted).toBe(true)
       expect(newStore.getRemainingMuteMinutes()).toBe(10)

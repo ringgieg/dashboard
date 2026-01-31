@@ -3,27 +3,17 @@ import { ref } from 'vue'
 import { tailLogs, buildTaskQuery } from '../api/loki'
 import { useAlertStore } from './alertStore'
 import { useTaskStore } from './taskStore'
-import { getCurrentServiceConfig } from '../utils/config'
+import { getCurrentServiceConfig, getLogLevelMapping } from '../utils/config'
 
 /**
  * Check if a log level should trigger an alert based on configured alert level and mapping
  * @param {string} logLevel - Log level from the log entry
  * @param {string} alertLevel - Configured alert level threshold
- * @param {Object} levelMapping - Level mapping from config
  * @returns {boolean} True if should trigger alert
  */
-function shouldTriggerAlert(logLevel, alertLevel, levelMapping) {
-  // Default mapping if not provided in config
-  const defaultMapping = {
-    'ERROR': ['ERROR'],
-    'WARN': ['ERROR', 'WARN'],
-    'INFO': ['ERROR', 'WARN', 'INFO'],
-    'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
-  }
-
-  const mapping = levelMapping || defaultMapping
+function shouldTriggerAlert(logLevel, alertLevel) {
+  const mapping = getLogLevelMapping()
   const alertLevels = mapping[alertLevel] || ['ERROR']
-
   return alertLevels.includes(logLevel)
 }
 
@@ -65,9 +55,8 @@ export const useWsStore = defineStore('ws', () => {
     // Query for all logs (no task_name filter, uses fixedLabels from config)
     const query = buildTaskQuery(null)
 
-    // Get configured alert level and level mapping
+    // Get configured alert level
     const alertLevel = getCurrentServiceConfig('alert.level', 'ERROR')
-    const levelMapping = getCurrentServiceConfig('logLevels.mapping', null)
 
     wsController = tailLogs(query, {
       onLog: (logs) => {
@@ -77,7 +66,7 @@ export const useWsStore = defineStore('ws', () => {
           const level = (log.level || 'INFO').toUpperCase()
 
           // Skip alert triggering during initial connection to avoid false alerts
-          if (!isInitializing && shouldTriggerAlert(level, alertLevel, levelMapping) && taskName) {
+          if (!isInitializing && shouldTriggerAlert(level, alertLevel) && taskName) {
             const isWatched = taskStore.watchedTasks.has(taskName)
 
             console.log(`${level} log detected for task: ${taskName} (watched: ${isWatched}, alert level: ${alertLevel})`)

@@ -253,3 +253,35 @@ export function getCurrentServiceConfig(path, fallback) {
   const serviceId = getCurrentServiceId()
   return getServiceConfig(serviceId, path, fallback)
 }
+
+/**
+ * Get log level order for current service
+ * @returns {Array<string>} Log level order (e.g., ['ERROR', 'WARN', 'INFO', 'DEBUG'])
+ */
+export function getLogLevelOrder() {
+  return getCurrentServiceConfig('logLevels.order', ['ERROR', 'WARN', 'INFO', 'DEBUG'])
+}
+
+/**
+ * Get log level mapping for current service
+ * @returns {Object} Log level mapping (e.g., { 'ERROR': ['ERROR'], 'WARN': ['ERROR', 'WARN'], ... })
+ */
+export function getLogLevelMapping() {
+  return getCurrentServiceConfig('logLevels.mapping', {
+    'ERROR': ['ERROR'],
+    'WARN': ['ERROR', 'WARN'],
+    'INFO': ['ERROR', 'WARN', 'INFO'],
+    'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
+  })
+}
+
+/**
+ * Get log level regex pattern for LogQL query
+ * @param {string} level - Log level
+ * @returns {string} Regex pattern for LogQL (e.g., 'ERROR|WARN|INFO')
+ */
+export function getLogLevelRegex(level) {
+  const mapping = getLogLevelMapping()
+  const levels = mapping[level] || [level]
+  return levels.join('|')
+}

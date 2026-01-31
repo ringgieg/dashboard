@@ -110,7 +110,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useTaskStore } from '../stores/taskStore'
 import { useWsStore } from '../stores/wsStore'
 import { useServiceStore } from '../stores/serviceStore'
-import { Search, Refresh, FullScreen, Close } from '@element-plus/icons-vue'
+import { Search, Refresh, FullScreen } from '@element-plus/icons-vue'
 import MuteButton from './MuteButton.vue'
 
 // Props
@@ -251,16 +251,7 @@ onUnmounted(() => {
 }
 
 .refresh-button .is-loading {
-  animation: rotate 1s linear infinite;
-}
-
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  animation: spin 1s linear infinite;
 }
 
 .task-list-content {

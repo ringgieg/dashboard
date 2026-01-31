@@ -39,6 +39,14 @@ describe('wsStore', () => {
       return configs[path] ?? fallback
     })
 
+    // Mock getLogLevelMapping
+    vi.spyOn(config, 'getLogLevelMapping').mockReturnValue({
+      'ERROR': ['ERROR'],
+      'WARN': ['ERROR', 'WARN'],
+      'INFO': ['ERROR', 'WARN', 'INFO'],
+      'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
+    })
+
     // Mock buildTaskQuery
     vi.spyOn(lokiApi, 'buildTaskQuery').mockReturnValue('mocked-query')
 
@@ -241,19 +249,22 @@ describe('wsStore', () => {
 
     it('should handle custom mapping configuration', async () => {
       // Custom mapping: WARN includes only WARN and ERROR (not cascading)
+      const customMapping = {
+        'ERROR': ['ERROR'],
+        'WARN': ['WARN'], // Custom: only WARN, not ERROR
+        'INFO': ['INFO'],
+        'DEBUG': ['DEBUG']
+      }
+
       config.getCurrentServiceConfig.mockImplementation((path, fallback) => {
         if (path === 'alert.level') return 'WARN'
-        if (path === 'logLevels.mapping') {
-          return {
-            'ERROR': ['ERROR'],
-            'WARN': ['WARN'], // Custom: only WARN, not ERROR
-            'INFO': ['INFO'],
-            'DEBUG': ['DEBUG']
-          }
-        }
+        if (path === 'logLevels.mapping') return customMapping
         if (path === 'websocket.initializationDelay') return 100
         return fallback
       })
+
+      // Mock getLogLevelMapping to return custom mapping
+      config.getLogLevelMapping.mockReturnValue(customMapping)
 
       const triggerAlertSpy = vi.spyOn(alertStore, 'triggerAlert')
 
