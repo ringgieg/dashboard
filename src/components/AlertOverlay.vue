@@ -70,6 +70,14 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.alert-overlay,
+.unmute-warning-overlay {
+  --app-danger-20: color-mix(in srgb, var(--el-color-danger) 20%, transparent);
+  --app-danger-15: color-mix(in srgb, var(--el-color-danger) 15%, transparent);
+  --app-danger-08: color-mix(in srgb, var(--el-color-danger) 8%, transparent);
+  --app-danger-30: color-mix(in srgb, var(--el-color-danger) 30%, transparent);
+}
+
 .alert-overlay {
   position: fixed;
   top: 0;
@@ -89,9 +97,9 @@ onUnmounted(() => {
   bottom: 0;
   pointer-events: none;
   box-shadow:
-    inset 0 0 100px 20px rgba(255, 0, 0, 0.2),
-    inset 0 0 200px 40px rgba(255, 0, 0, 0.15),
-    inset 0 0 300px 60px rgba(255, 0, 0, 0.075);
+    inset 0 0 100px 20px var(--app-danger-20),
+    inset 0 0 200px 40px var(--app-danger-15),
+    inset 0 0 300px 60px var(--app-danger-08);
   animation: pulse-alert 0.5s ease-in-out infinite;
 }
 
@@ -123,7 +131,7 @@ onUnmounted(() => {
   right: 0;
   bottom: 0;
   pointer-events: none;
-  background-color: rgba(255, 0, 0, 0.15);
+  background-color: var(--app-danger-15);
   animation: pulse-unmute 1s ease-in-out infinite;
 }
 
@@ -132,7 +140,7 @@ onUnmounted(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: #f56c6c;
+  color: var(--el-color-danger);
   text-align: center;
   pointer-events: none;
   animation: fade-in 0.3s ease-out;
@@ -142,8 +150,8 @@ onUnmounted(() => {
   margin-top: 16px;
   font-size: 24px;
   font-weight: bold;
-  color: #f56c6c;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: var(--el-color-danger);
+  text-shadow: 0 2px 8px var(--app-danger-30);
 }
 
 @keyframes pulse-unmute {

@@ -484,19 +484,19 @@ async function handleCommand(minutes) {
 }
 
 .am-silence-button.variant-danger {
-  background: rgba(248, 113, 113, 0.14);
-  border-color: rgba(248, 113, 113, 0.45);
-  color: #dc2626;
+  background: var(--el-color-danger-light-9);
+  border-color: var(--el-color-danger-light-5);
+  color: var(--el-color-danger);
 }
 
 .am-silence-button.variant-danger:hover {
-  background: rgba(248, 113, 113, 0.22);
-  border-color: rgba(248, 113, 113, 0.7);
-  color: #b91c1c;
+  background: var(--el-color-danger-light-8);
+  border-color: var(--el-color-danger-light-3);
+  color: var(--el-color-danger-dark-2);
 }
 
 .am-silence-button.variant-danger:focus {
-  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.25);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--el-color-danger) 25%, transparent);
 }
 
 .am-silence-button.variant-neutral {

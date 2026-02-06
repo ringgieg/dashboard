@@ -345,16 +345,22 @@ onUnmounted(() => {
 }
 
 .task-item.has-alertmanager-match {
+  --app-am-danger-12: color-mix(in srgb, var(--el-color-danger) 12%, transparent);
+  --app-am-danger-18: color-mix(in srgb, var(--el-color-danger) 18%, transparent);
+  --app-am-danger-22: color-mix(in srgb, var(--el-color-danger) 22%, transparent);
+  --app-am-danger-25: color-mix(in srgb, var(--el-color-danger) 25%, transparent);
+  --app-am-danger-35: color-mix(in srgb, var(--el-color-danger) 35%, transparent);
+  --app-am-bg-22: color-mix(in srgb, var(--el-bg-color) 22%, transparent);
   position: relative;
-  background: #fef2f2; /* red-50 */
-  border-color: #fecaca; /* red-200 */
-  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.18); /* red-400 ring */
+  background: var(--el-color-danger-light-9);
+  border-color: var(--el-color-danger-light-5);
+  box-shadow: 0 0 0 2px var(--app-am-danger-18);
   overflow: hidden;
 }
 
 .task-item.has-alertmanager-match.is-selected {
-  background: #fee2e2; /* red-100 */
-  border-color: #f87171; /* red-400 */
+  background: var(--el-color-danger-light-8);
+  border-color: var(--el-color-danger-light-3);
 }
 
 .task-item.has-alertmanager-match::before {
@@ -363,11 +369,11 @@ onUnmounted(() => {
   inset: 0;
   background: linear-gradient(
     110deg,
-    rgba(248, 113, 113, 0.12) 0%,
-    rgba(248, 113, 113, 0.26) 35%,
-    rgba(255, 255, 255, 0.22) 50%,
-    rgba(248, 113, 113, 0.26) 65%,
-    rgba(248, 113, 113, 0.12) 100%
+    var(--app-am-danger-12) 0%,
+    var(--app-am-danger-25) 35%,
+    var(--app-am-bg-22) 50%,
+    var(--app-am-danger-25) 65%,
+    var(--app-am-danger-12) 100%
   );
   background-size: 300% 100%;
   animation: taskShimmer 1.9s linear infinite;
@@ -378,7 +384,7 @@ onUnmounted(() => {
   content: '';
   position: absolute;
   inset: 0;
-  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.25), 0 0 0 0 rgba(248, 113, 113, 0.35);
+  box-shadow: inset 0 0 0 1px var(--app-am-danger-25), 0 0 0 0 var(--app-am-danger-35);
   animation: taskPulse 1.6s ease-in-out infinite;
   pointer-events: none;
 }
@@ -527,10 +533,10 @@ onUnmounted(() => {
 
 @keyframes taskPulse {
   0%, 100% {
-    box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.25), 0 0 0 0 rgba(248, 113, 113, 0.35);
+    box-shadow: inset 0 0 0 1px var(--app-am-danger-25), 0 0 0 0 var(--app-am-danger-35);
   }
   50% {
-    box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.45), 0 0 0 3px rgba(248, 113, 113, 0.22);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--el-color-danger) 45%, transparent), 0 0 0 3px var(--app-am-danger-22);
   }
 }
 
@@ -541,7 +547,7 @@ onUnmounted(() => {
   background: var(--el-bg-color-overlay);
   border: 1px solid var(--el-border-color);
   border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--el-box-shadow-light);
   overflow: hidden;
   min-width: 120px;
 }

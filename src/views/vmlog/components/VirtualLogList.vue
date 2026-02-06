@@ -469,7 +469,7 @@ onUnmounted(() => {
 .log-details {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--el-border-color-light);
   user-select: none;
 }
 
@@ -549,11 +549,11 @@ onUnmounted(() => {
 .label-key::after {
   content: '=';
   margin-left: 4px;
-  color: #9ca3af;
+  color: var(--el-text-color-placeholder);
 }
 
 .label-value {
-  color: #111827;
+  color: var(--el-text-color-primary);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -5,11 +5,33 @@
 
 const defaultConfig = {
   pageTitle: '',
+  appTitle: '',
   activeService: 'batch-sync',
+  themeSchedule: {
+    mode: 'auto',
+    timeZone: 'Asia/Shanghai',
+    dayStart: '08:25',
+    nightStart: '16:25'
+  },
+  // Global VMLog defaults (can be overridden per-service)
+  vmlog: {
+    apiBasePath: '/select/logsql',
+    api: {
+      tailLimit: 100,
+      tailDelayFor: '0',
+      maxRetries: 3,
+      retryBaseDelay: 1000
+    },
+    websocket: {
+      reconnectDelay: 3000,
+      initializationDelay: 2000
+    }
+  },
   services: [
     {
       id: 'batch-sync',
       displayName: 'Batch-Sync Service',
+      type: 'vmlog-multitask',
       vmlog: {
         apiBasePath: '/select/logsql',
         api: {
@@ -38,37 +60,6 @@ const defaultConfig = {
         defaultTimeRangeDays: 7
       },
       logLevels: ['ERROR', 'WARN', 'INFO', 'DEBUG']
-    },
-    {
-      id: 'data-service',
-      displayName: 'Data Service',
-      vmlog: {
-        apiBasePath: '/select/logsql',
-        api: {
-          tailLimit: 100,
-          tailDelayFor: '0',
-          maxRetries: 3,
-          retryBaseDelay: 1000
-        },
-        fixedLabels: {
-          job: 'api',
-          service: 'Data-Service'
-        },
-        taskLabel: 'endpoint',
-        websocket: {
-          reconnectDelay: 3000,
-          initializationDelay: 2000
-        }
-      },
-      defaultLogLevel: 'WARN',
-      logsPerPage: 1000,
-      alert: {
-        level: 'ERROR',
-        newLogHighlightDuration: 3000
-      },
-      query: {
-        defaultTimeRangeDays: 7
-      }
     }
   ],
   virtualScroll: {
@@ -478,7 +469,8 @@ export function isPrometheusService() {
 // ============================================================
 
 export function getVmalertApiBasePath() {
-  return getCurrentServiceConfig('vmalert.apiBasePath', getCurrentServiceConfig('prometheus.apiBasePath', '/prometheus/api/v1'))
+  // Default points to VMAlert's unified alert API base. Override per service in public/config.js.
+  return getCurrentServiceConfig('vmalert.apiBasePath', getCurrentServiceConfig('prometheus.apiBasePath', '/api/v1'))
 }
 
 export function getVmalertTaskLabel() {

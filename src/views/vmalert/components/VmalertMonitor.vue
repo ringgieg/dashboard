@@ -969,6 +969,61 @@ watch(
 
 <style scoped>
 .vmalert-monitor-container {
+  --app-danger-02: color-mix(in srgb, var(--el-color-danger) 2%, transparent);
+  --app-danger-04: color-mix(in srgb, var(--el-color-danger) 4%, transparent);
+  --app-danger-06: color-mix(in srgb, var(--el-color-danger) 6%, transparent);
+  --app-danger-08: color-mix(in srgb, var(--el-color-danger) 8%, transparent);
+  --app-danger-10: color-mix(in srgb, var(--el-color-danger) 10%, transparent);
+  --app-danger-12: color-mix(in srgb, var(--el-color-danger) 12%, transparent);
+  --app-danger-14: color-mix(in srgb, var(--el-color-danger) 14%, transparent);
+  --app-danger-15: color-mix(in srgb, var(--el-color-danger) 15%, transparent);
+  --app-danger-18: color-mix(in srgb, var(--el-color-danger) 18%, transparent);
+  --app-danger-20: color-mix(in srgb, var(--el-color-danger) 20%, transparent);
+  --app-danger-22: color-mix(in srgb, var(--el-color-danger) 22%, transparent);
+  --app-danger-25: color-mix(in srgb, var(--el-color-danger) 25%, transparent);
+  --app-danger-30: color-mix(in srgb, var(--el-color-danger) 30%, transparent);
+  --app-danger-32: color-mix(in srgb, var(--el-color-danger) 32%, transparent);
+  --app-danger-35: color-mix(in srgb, var(--el-color-danger) 35%, transparent);
+  --app-danger-40: color-mix(in srgb, var(--el-color-danger) 40%, transparent);
+  --app-danger-45: color-mix(in srgb, var(--el-color-danger) 45%, transparent);
+  --app-danger-55: color-mix(in srgb, var(--el-color-danger) 55%, transparent);
+  --app-danger-60: color-mix(in srgb, var(--el-color-danger) 60%, transparent);
+
+  --app-warning-02: color-mix(in srgb, var(--el-color-warning) 2%, transparent);
+  --app-warning-05: color-mix(in srgb, var(--el-color-warning) 5%, transparent);
+  --app-warning-06: color-mix(in srgb, var(--el-color-warning) 6%, transparent);
+  --app-warning-08: color-mix(in srgb, var(--el-color-warning) 8%, transparent);
+  --app-warning-12: color-mix(in srgb, var(--el-color-warning) 12%, transparent);
+  --app-warning-14: color-mix(in srgb, var(--el-color-warning) 14%, transparent);
+  --app-warning-16: color-mix(in srgb, var(--el-color-warning) 16%, transparent);
+  --app-warning-18: color-mix(in srgb, var(--el-color-warning) 18%, transparent);
+  --app-warning-20: color-mix(in srgb, var(--el-color-warning) 20%, transparent);
+  --app-warning-22: color-mix(in srgb, var(--el-color-warning) 22%, transparent);
+  --app-warning-25: color-mix(in srgb, var(--el-color-warning) 25%, transparent);
+  --app-warning-30: color-mix(in srgb, var(--el-color-warning) 30%, transparent);
+  --app-warning-38: color-mix(in srgb, var(--el-color-warning) 38%, transparent);
+  --app-warning-45: color-mix(in srgb, var(--el-color-warning) 45%, transparent);
+  --app-warning-55: color-mix(in srgb, var(--el-color-warning) 55%, transparent);
+
+  --app-success-02: color-mix(in srgb, var(--el-color-success) 2%, transparent);
+  --app-success-05: color-mix(in srgb, var(--el-color-success) 5%, transparent);
+  --app-success-08: color-mix(in srgb, var(--el-color-success) 8%, transparent);
+  --app-success-12: color-mix(in srgb, var(--el-color-success) 12%, transparent);
+  --app-success-15: color-mix(in srgb, var(--el-color-success) 15%, transparent);
+  --app-success-18: color-mix(in srgb, var(--el-color-success) 18%, transparent);
+
+  --app-primary-12: color-mix(in srgb, var(--el-color-primary) 12%, transparent);
+  --app-primary-18: color-mix(in srgb, var(--el-color-primary) 18%, transparent);
+
+  --app-info-12: color-mix(in srgb, var(--el-color-info) 12%, transparent);
+  --app-info-18: color-mix(in srgb, var(--el-color-info) 18%, transparent);
+
+  --app-bg-22: color-mix(in srgb, var(--el-bg-color) 22%, transparent);
+  --app-bg-28: color-mix(in srgb, var(--el-bg-color) 28%, transparent);
+  --app-bg-30: color-mix(in srgb, var(--el-bg-color) 30%, transparent);
+
+  --app-shadow-08: color-mix(in srgb, var(--el-text-color-primary) 8%, transparent);
+
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -1084,15 +1139,15 @@ watch(
 }
 
 .alertmanager-tag {
-  background: #eff6ff; /* blue-50 */
-  border-color: #bfdbfe; /* blue-200 */
-  color: #1d4ed8; /* blue-700 */
+  background: var(--el-color-primary-light-9);
+  border-color: var(--el-color-primary-light-5);
+  color: var(--el-color-primary);
 }
 
 .alertmanager-silenced-tag {
-  background: #fff7ed; /* orange-50 */
-  border-color: #fed7aa; /* orange-200 */
-  color: #c2410c; /* orange-700 */
+  background: var(--el-color-warning-light-9);
+  border-color: var(--el-color-warning-light-5);
+  color: var(--el-color-warning);
 }
 
 .alert-name {
@@ -1102,15 +1157,15 @@ watch(
 }
 
 .alert-firing {
-  border-left: 4px solid #f56c6c;
+  border-left: 4px solid var(--el-color-danger);
 }
 
 .alert-pending {
-  border-left: 4px solid #e6a23c;
+  border-left: 4px solid var(--el-color-warning);
 }
 
 .alert-inactive {
-  border-left: 4px solid #67c23a;
+  border-left: 4px solid var(--el-color-success);
 }
 
 .alert-detail-expanded {
@@ -1199,74 +1254,74 @@ watch(
 
 /* Grid state colors */
 .grid-firing {
-  border-color: #ef4444;
+  border-color: var(--el-color-danger);
   border-width: 2px;
-  box-shadow: 0 2px 8px 0 rgba(239, 68, 68, 0.15), 0 1px 3px -1px rgba(239, 68, 68, 0.1);
+  box-shadow: 0 2px 8px 0 var(--app-danger-15), 0 1px 3px -1px var(--app-danger-10);
 }
 
 .grid-firing .grid-header {
-  background: linear-gradient(to bottom, rgba(239, 68, 68, 0.08), rgba(239, 68, 68, 0.12));
-  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+  background: linear-gradient(to bottom, var(--app-danger-08), var(--app-danger-12));
+  border-bottom: 1px solid var(--app-danger-20);
 }
 
 .grid-pending {
-  border-color: #f59e0b;
+  border-color: var(--el-color-warning);
   border-width: 2px;
-  box-shadow: 0 2px 8px 0 rgba(251, 146, 60, 0.12), 0 1px 3px -1px rgba(251, 146, 60, 0.08);
+  box-shadow: 0 2px 8px 0 var(--app-warning-12), 0 1px 3px -1px var(--app-warning-08);
 }
 
 .grid-pending .grid-header {
-  background: linear-gradient(to bottom, rgba(251, 146, 60, 0.08), rgba(251, 146, 60, 0.12));
-  border-bottom: 1px solid rgba(251, 146, 60, 0.2);
+  background: linear-gradient(to bottom, var(--app-warning-08), var(--app-warning-12));
+  border-bottom: 1px solid var(--app-warning-20);
 }
 
 .grid-inactive {
-  border-color: #22c55e;
+  border-color: var(--el-color-success);
   border-width: 1px;
-  box-shadow: 0 1px 4px 0 rgba(34, 197, 94, 0.08), 0 1px 2px -1px rgba(34, 197, 94, 0.05);
+  box-shadow: 0 1px 4px 0 var(--app-success-08), 0 1px 2px -1px var(--app-success-05);
 }
 
 .grid-inactive .grid-header {
-  background: linear-gradient(to bottom, rgba(34, 197, 94, 0.05), rgba(34, 197, 94, 0.08));
-  border-bottom: 1px solid rgba(34, 197, 94, 0.15);
+  background: linear-gradient(to bottom, var(--app-success-05), var(--app-success-08));
+  border-bottom: 1px solid var(--app-success-15);
 }
 
 .grid-alertmanager-match {
-  background: #fef2f2; /* red-50 */
-  border-color: #f87171; /* red-400 */
-  box-shadow: 0 8px 16px -8px rgba(248, 113, 113, 0.45), 0 2px 6px -4px rgba(248, 113, 113, 0.4);
+  background: var(--el-color-danger-light-9);
+  border-color: var(--el-color-danger-light-3);
+  box-shadow: 0 8px 16px -8px var(--app-danger-45), 0 2px 6px -4px var(--app-danger-40);
 }
 
 .grid-alertmanager-match .grid-header {
   background: linear-gradient(
     110deg,
-    rgba(248, 113, 113, 0.18) 0%,
-    rgba(248, 113, 113, 0.32) 35%,
-    rgba(255, 255, 255, 0.28) 50%,
-    rgba(248, 113, 113, 0.32) 65%,
-    rgba(248, 113, 113, 0.18) 100%
+    var(--app-danger-18) 0%,
+    var(--app-danger-32) 35%,
+    var(--app-bg-28) 50%,
+    var(--app-danger-32) 65%,
+    var(--app-danger-18) 100%
   );
-  border-bottom: 1px solid rgba(248, 113, 113, 0.25);
+  border-bottom: 1px solid var(--app-danger-25);
   background-size: 300% 100%;
   animation: gridHeaderShimmer 1.8s linear infinite, gridHeaderPulse 1.6s ease-in-out infinite;
 }
 
 .grid-alertmanager-silenced {
-  background: #fff7ed; /* orange-50 */
-  border-color: #fb923c; /* orange-400 */
-  box-shadow: 0 8px 16px -8px rgba(249, 115, 22, 0.45), 0 2px 6px -4px rgba(249, 115, 22, 0.4);
+  background: var(--el-color-warning-light-9);
+  border-color: var(--el-color-warning-light-3);
+  box-shadow: 0 8px 16px -8px var(--app-warning-45), 0 2px 6px -4px var(--app-warning-30);
 }
 
 .grid-alertmanager-silenced .grid-header {
   background: linear-gradient(
     110deg,
-    rgba(251, 146, 60, 0.2) 0%,
-    rgba(251, 146, 60, 0.38) 35%,
-    rgba(255, 255, 255, 0.3) 50%,
-    rgba(251, 146, 60, 0.38) 65%,
-    rgba(251, 146, 60, 0.2) 100%
+    var(--app-warning-20) 0%,
+    var(--app-warning-38) 35%,
+    var(--app-bg-30) 50%,
+    var(--app-warning-38) 65%,
+    var(--app-warning-20) 100%
   );
-  border-bottom: 1px solid rgba(251, 146, 60, 0.3);
+  border-bottom: 1px solid var(--app-warning-30);
   background-size: 320% 100%;
   animation: gridHeaderSilenceShimmer 1.6s linear infinite, gridHeaderSilencePulse 1.4s ease-in-out infinite;
 }
@@ -1399,51 +1454,51 @@ watch(
 }
 
 .label-item.label-highlight-amber {
-  background: #fffbeb; /* amber-50 */
-  border: 1px solid #fde68a; /* amber-200 */
-  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.18); /* amber-400 ring */
+  background: var(--el-color-warning-light-9);
+  border: 1px solid var(--el-color-warning-light-5);
+  box-shadow: 0 0 0 2px var(--app-warning-18);
 }
 
 .label-item.label-highlight-sky {
-  background: #f0f9ff; /* sky-50 */
-  border: 1px solid #bae6fd; /* sky-200 */
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18); /* sky-400 ring */
+  background: var(--el-color-info-light-9);
+  border: 1px solid var(--el-color-info-light-5);
+  box-shadow: 0 0 0 2px var(--app-info-18);
 }
 
 .label-item.label-highlight-emerald {
-  background: #ecfdf5; /* emerald-50 */
-  border: 1px solid #a7f3d0; /* emerald-200 */
-  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.18); /* emerald-400 ring */
+  background: var(--el-color-success-light-9);
+  border: 1px solid var(--el-color-success-light-5);
+  box-shadow: 0 0 0 2px var(--app-success-18);
 }
 
 .label-item.label-highlight-rose {
-  background: #fff1f2; /* rose-50 */
-  border: 1px solid #fecdd3; /* rose-200 */
-  box-shadow: 0 0 0 2px rgba(251, 113, 133, 0.18); /* rose-400 ring */
+  background: var(--el-color-danger-light-9);
+  border: 1px solid var(--el-color-danger-light-5);
+  box-shadow: 0 0 0 2px var(--app-danger-18);
 }
 
 .label-item.label-highlight-violet {
-  background: #f5f3ff; /* violet-50 */
-  border: 1px solid #ddd6fe; /* violet-200 */
-  box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.18); /* violet-400 ring */
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-5);
+  box-shadow: 0 0 0 2px var(--app-primary-18);
 }
 
 .label-item.label-highlight-slate {
-  background: #f8fafc; /* slate-50 */
-  border: 1px solid #e2e8f0; /* slate-200 */
-  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.18); /* slate-400 ring */
+  background: var(--el-fill-color-lighter);
+  border: 1px solid var(--el-border-color-lighter);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--el-border-color) 18%, transparent);
 }
 
 .label-item.label-highlight-indigo {
-  background: #eef2ff; /* indigo-50 */
-  border: 1px solid #c7d2fe; /* indigo-200 */
-  box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.18); /* indigo-400 ring */
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-5);
+  box-shadow: 0 0 0 2px var(--app-primary-12);
 }
 
 .label-item.label-highlight-teal {
-  background: #f0fdfa; /* teal-50 */
-  border: 1px solid #99f6e4; /* teal-200 */
-  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.18); /* teal-400 ring */
+  background: var(--el-color-info-light-9);
+  border: 1px solid var(--el-color-info-light-5);
+  box-shadow: 0 0 0 2px var(--app-info-12);
 }
 
 /* Diff labels - tailwind-style colors by key */
@@ -1452,51 +1507,51 @@ watch(
 }
 
 .label-item.label-diff-amber {
-  background: #fff7ed; /* amber-50 */
-  border: 1px solid #fed7aa; /* amber-200 */
-  box-shadow: 0 0 0 2px rgba(251, 146, 60, 0.12); /* amber-400 ring */
+  background: var(--el-color-warning-light-9);
+  border: 1px solid var(--el-color-warning-light-5);
+  box-shadow: 0 0 0 2px var(--app-warning-12);
 }
 
 .label-item.label-diff-sky {
-  background: #f0f9ff; /* sky-50 */
-  border: 1px solid #bae6fd; /* sky-200 */
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.12); /* sky-400 ring */
+  background: var(--el-color-info-light-9);
+  border: 1px solid var(--el-color-info-light-5);
+  box-shadow: 0 0 0 2px var(--app-info-12);
 }
 
 .label-item.label-diff-emerald {
-  background: #ecfdf5; /* emerald-50 */
-  border: 1px solid #a7f3d0; /* emerald-200 */
-  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.12); /* emerald-400 ring */
+  background: var(--el-color-success-light-9);
+  border: 1px solid var(--el-color-success-light-5);
+  box-shadow: 0 0 0 2px var(--app-success-12);
 }
 
 .label-item.label-diff-rose {
-  background: #fff1f2; /* rose-50 */
-  border: 1px solid #fecdd3; /* rose-200 */
-  box-shadow: 0 0 0 2px rgba(251, 113, 133, 0.12); /* rose-400 ring */
+  background: var(--el-color-danger-light-9);
+  border: 1px solid var(--el-color-danger-light-5);
+  box-shadow: 0 0 0 2px var(--app-danger-12);
 }
 
 .label-item.label-diff-violet {
-  background: #f5f3ff; /* violet-50 */
-  border: 1px solid #ddd6fe; /* violet-200 */
-  box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.12); /* violet-400 ring */
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-5);
+  box-shadow: 0 0 0 2px var(--app-primary-12);
 }
 
 .label-item.label-diff-slate {
-  background: #f8fafc; /* slate-50 */
-  border: 1px solid #e2e8f0; /* slate-200 */
-  box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.12); /* slate-400 ring */
+  background: var(--el-fill-color-lighter);
+  border: 1px solid var(--el-border-color-lighter);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--el-border-color) 12%, transparent);
 }
 
 .label-item.label-diff-indigo {
-  background: #eef2ff; /* indigo-50 */
-  border: 1px solid #c7d2fe; /* indigo-200 */
-  box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.12); /* indigo-400 ring */
+  background: var(--el-color-primary-light-9);
+  border: 1px solid var(--el-color-primary-light-5);
+  box-shadow: 0 0 0 2px var(--app-primary-12);
 }
 
 .label-item.label-diff-teal {
-  background: #f0fdfa; /* teal-50 */
-  border: 1px solid #99f6e4; /* teal-200 */
-  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.12); /* teal-400 ring */
+  background: var(--el-color-info-light-9);
+  border: 1px solid var(--el-color-info-light-5);
+  box-shadow: 0 0 0 2px var(--app-info-12);
 }
 
 .label-item.label-normal {
@@ -1506,22 +1561,22 @@ watch(
 
 /* Annotation categories - highlight important annotations */
 .annotation-item.annotation-highlight {
-  background: #fffbeb; /* amber-50 */
-  border: 1px solid #fde68a; /* amber-200 */
-  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.18); /* amber-400 ring */
+  background: var(--el-color-warning-light-9);
+  border: 1px solid var(--el-color-warning-light-5);
+  box-shadow: 0 0 0 2px var(--app-warning-18);
   font-weight: 600;
 }
 
 .label-item[class*="label-highlight-"] .label-key,
 .label-item[class*="label-diff-"] .label-key,
 .annotation-item.annotation-highlight .annotation-key {
-  color: #0f172a; /* slate-900 */
+  color: var(--el-text-color-primary);
 }
 
 .label-item[class*="label-highlight-"] .label-value,
 .label-item[class*="label-diff-"] .label-value,
 .annotation-item.annotation-highlight .annotation-value {
-  color: #334155; /* slate-700 */
+  color: var(--el-text-color-regular);
 }
 
 .annotation-item.annotation-normal {
@@ -1542,13 +1597,13 @@ watch(
 }
 
 .annotation-value a {
-  color: #2563eb; /* blue-600 */
+  color: var(--el-color-primary);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .annotation-value a:hover {
-  color: #1d4ed8; /* blue-700 */
+  color: var(--el-color-primary-dark-2);
 }
 
 .rule-info {
@@ -1598,9 +1653,9 @@ watch(
 }
 
 .grid-silence-tag {
-  background: #fff7ed; /* orange-50 */
-  border-color: #fed7aa; /* orange-200 */
-  color: #c2410c; /* orange-700 */
+  background: var(--el-color-warning-light-9);
+  border-color: var(--el-color-warning-light-5);
+  color: var(--el-color-warning);
 }
 
 .grid-stat {
@@ -1717,39 +1772,39 @@ watch(
 }
 
 .dialog-alert-item:hover {
-  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px 0 var(--app-shadow-08);
 }
 
 .dialog-alert-item.alert-firing {
-  border-left: 4px solid #f56c6c;
-  background: linear-gradient(to right, rgba(245, 108, 108, 0.02), transparent);
+  border-left: 4px solid var(--el-color-danger);
+  background: linear-gradient(to right, var(--app-danger-02), transparent);
 }
 
 .dialog-alert-item.alert-pending {
-  border-left: 4px solid #e6a23c;
-  background: linear-gradient(to right, rgba(230, 162, 60, 0.02), transparent);
+  border-left: 4px solid var(--el-color-warning);
+  background: linear-gradient(to right, var(--app-warning-02), transparent);
 }
 
 .dialog-alert-item.alert-inactive {
-  border-left: 4px solid #67c23a;
-  background: linear-gradient(to right, rgba(103, 194, 58, 0.02), transparent);
+  border-left: 4px solid var(--el-color-success);
+  background: linear-gradient(to right, var(--app-success-02), transparent);
 }
 
 .dialog-alert-item.alertmanager-match {
-  background: linear-gradient(to right, rgba(248, 113, 113, 0.14), rgba(248, 113, 113, 0.04));
-  border-color: #fca5a5; /* red-300 */
-  box-shadow: 0 4px 10px -6px rgba(248, 113, 113, 0.6);
+  background: linear-gradient(to right, var(--app-danger-14), var(--app-danger-04));
+  border-color: var(--el-color-danger-light-4);
+  box-shadow: 0 4px 10px -6px var(--app-danger-60);
 }
 
 .dialog-alert-item.alertmanager-match.alert-firing {
-  background: linear-gradient(to right, rgba(239, 68, 68, 0.18), rgba(239, 68, 68, 0.06));
-  border-left-color: #ef4444;
+  background: linear-gradient(to right, var(--app-danger-18), var(--app-danger-06));
+  border-left-color: var(--el-color-danger);
 }
 
 .dialog-alert-item.alertmanager-silenced {
-  background: linear-gradient(to right, rgba(251, 146, 60, 0.16), rgba(251, 146, 60, 0.05));
-  border-color: #fdba74; /* orange-300 */
-  box-shadow: 0 4px 10px -6px rgba(249, 115, 22, 0.45);
+  background: linear-gradient(to right, var(--app-warning-16), var(--app-warning-05));
+  border-color: var(--el-color-warning-light-4);
+  box-shadow: 0 4px 10px -6px var(--app-warning-45);
 }
 
 .dialog-alert-header {
@@ -1803,10 +1858,10 @@ watch(
 
 @keyframes gridHeaderPulse {
   0%, 100% {
-    box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.25), 0 0 0 0 rgba(248, 113, 113, 0.4);
+    box-shadow: inset 0 0 0 1px var(--app-danger-25), 0 0 0 0 var(--app-danger-40);
   }
   50% {
-    box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.45), 0 0 0 3px rgba(248, 113, 113, 0.25);
+    box-shadow: inset 0 0 0 1px var(--app-danger-45), 0 0 0 3px var(--app-danger-25);
   }
 }
 
@@ -1821,10 +1876,10 @@ watch(
 
 @keyframes gridHeaderSilencePulse {
   0%, 100% {
-    box-shadow: inset 0 0 0 1px rgba(251, 146, 60, 0.3), 0 0 0 0 rgba(251, 146, 60, 0.4);
+    box-shadow: inset 0 0 0 1px var(--app-warning-30), 0 0 0 0 var(--app-warning-45);
   }
   50% {
-    box-shadow: inset 0 0 0 1px rgba(251, 146, 60, 0.55), 0 0 0 3px rgba(251, 146, 60, 0.25);
+    box-shadow: inset 0 0 0 1px var(--app-warning-55), 0 0 0 3px var(--app-warning-25);
   }
 }
 </style>

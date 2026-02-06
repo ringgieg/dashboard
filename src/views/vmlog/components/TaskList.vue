@@ -412,7 +412,7 @@ onUnmounted(() => {
 
 .kiosk-button.kiosk-active {
   background-color: var(--el-color-primary);
-  color: white;
+  color: var(--el-color-white);
 }
 
 /* Context Menu */
@@ -433,7 +433,7 @@ onUnmounted(() => {
   border: 1px solid var(--el-border-color-light);
   border-radius: 8px;
   padding: 4px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--el-box-shadow-light);
 }
 
 .context-menu-item {

@@ -15,6 +15,15 @@ window.APP_CONFIG = {
   // 活动服务 ID（启动时监控哪个服务，可选，默认：第一个服务的 ID）
   activeService: 'vmalert-dashboard',
 
+  // 主题切换（可选）
+  // 按北京时间自动切换：08:25 -> 白天模式，16:25 -> 黑夜模式
+  themeSchedule: {
+    mode: 'auto',
+    timeZone: 'Asia/Shanghai',
+    dayStart: '08:25',
+    nightStart: '16:25'
+  },
+
   // 服务配置（必需，至少配置一个服务）
   // 每个服务都有自己的完整配?
   services: [
