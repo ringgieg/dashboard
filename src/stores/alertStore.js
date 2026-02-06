@@ -1,13 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useServiceStore } from './serviceStore'
+import { getAlertmanagerAlertMuteMinutes } from '../utils/config'
 
 const MUTE_STORAGE_KEY_PREFIX = 'dashboard-mute-until'
+const AM_MUTE_STORAGE_KEY_PREFIX = 'dashboard-am-muted-fingerprints'
 
 export const useAlertStore = defineStore('alert', () => {
   // Alert state
   const hasAlert = ref(false)
   const alertReasons = ref([])
+  const alertFingerprints = ref(new Set())
 
   // Mute state (timestamp in milliseconds, -1 for permanent mute)
   // Initialize to 0, will be loaded after serviceStore is ready
@@ -24,6 +27,76 @@ export const useAlertStore = defineStore('alert', () => {
     const serviceStore = useServiceStore()
     const serviceId = serviceStore.getCurrentServiceId()
     return `${MUTE_STORAGE_KEY_PREFIX}-${serviceId}`
+  }
+
+  function getAlertmanagerMuteStorageKey() {
+    const serviceStore = useServiceStore()
+    const serviceId = serviceStore.getCurrentServiceId()
+    return `${AM_MUTE_STORAGE_KEY_PREFIX}-${serviceId}`
+  }
+
+  function loadAlertmanagerMuteMap() {
+    try {
+      const raw = sessionStorage.getItem(getAlertmanagerMuteStorageKey())
+      if (!raw) return {}
+      const parsed = JSON.parse(raw)
+      if (!parsed || typeof parsed !== 'object') return {}
+
+      const now = Date.now()
+      const cleaned = {}
+      Object.entries(parsed).forEach(([fingerprint, expiresAt]) => {
+        if (typeof expiresAt === 'number' && expiresAt > now) {
+          cleaned[fingerprint] = expiresAt
+        }
+      })
+
+      if (Object.keys(cleaned).length !== Object.keys(parsed).length) {
+        sessionStorage.setItem(getAlertmanagerMuteStorageKey(), JSON.stringify(cleaned))
+      }
+
+      return cleaned
+    } catch (e) {
+      console.error('Error loading Alertmanager mute map:', e)
+      return {}
+    }
+  }
+
+  function saveAlertmanagerMuteMap(map) {
+    try {
+      sessionStorage.setItem(getAlertmanagerMuteStorageKey(), JSON.stringify(map))
+    } catch (e) {
+      console.error('Error saving Alertmanager mute map:', e)
+    }
+  }
+
+  function isAlertmanagerFingerprintMuted(fingerprint) {
+    if (!fingerprint) return false
+    const minutes = getAlertmanagerAlertMuteMinutes()
+    if (!minutes || minutes <= 0) return false
+
+    const map = loadAlertmanagerMuteMap()
+    const expiresAt = map[fingerprint]
+    return typeof expiresAt === 'number' && expiresAt > Date.now()
+  }
+
+  function addAlertFingerprint(fingerprint) {
+    if (!fingerprint) return
+    alertFingerprints.value.add(fingerprint)
+  }
+
+  function muteAlertmanagerFingerprints(fingerprints = []) {
+    const minutes = getAlertmanagerAlertMuteMinutes()
+    if (!minutes || minutes <= 0) return
+    if (!Array.isArray(fingerprints) || fingerprints.length === 0) return
+
+    const map = loadAlertmanagerMuteMap()
+    const expiresAt = Date.now() + minutes * 60 * 1000
+    fingerprints.forEach((fingerprint) => {
+      if (fingerprint) {
+        map[fingerprint] = expiresAt
+      }
+    })
+    saveAlertmanagerMuteMap(map)
   }
 
   // Load mute state from localStorage
@@ -88,6 +161,10 @@ export const useAlertStore = defineStore('alert', () => {
   function dismissAlert() {
     hasAlert.value = false
     alertReasons.value = []
+    if (alertFingerprints.value.size > 0) {
+      muteAlertmanagerFingerprints(Array.from(alertFingerprints.value))
+    }
+    alertFingerprints.value = new Set()
   }
 
   /**
@@ -105,21 +182,17 @@ export const useAlertStore = defineStore('alert', () => {
   }
 
   /**
-   * Check if mute has expired and clear it (兜底机制)
+   * Check if mute has expired and clear it.
    */
   function checkMuteExpiration() {
     if (muteUntil.value > 0 && muteUntil.value <= Date.now()) {
-      console.log('Mute expired, auto-clearing (兜底机制触发)')
+      console.log('Mute expired, auto-clearing')
       muteUntil.value = 0
       saveMuteState()
       stopMuteCheckTimer()
     }
   }
 
-  /**
-   * Start periodic mute check timer (兜底机制)
-   * Checks every minute to ensure mute expires correctly
-   */
   function startMuteCheckTimer() {
     stopMuteCheckTimer() // Clear any existing timer
     // Check every 30 seconds as a fallback mechanism
@@ -214,6 +287,8 @@ export const useAlertStore = defineStore('alert', () => {
     setMute,
     getRemainingMuteMinutes,
     checkMuteExpiration, // 暴露手动检查方法
-    dismissUnmuteWarning
+    dismissUnmuteWarning,
+    isAlertmanagerFingerprintMuted,
+    addAlertFingerprint
   }
 })

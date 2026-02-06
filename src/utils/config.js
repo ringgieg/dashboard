@@ -366,6 +366,32 @@ export function getAlertmanagerApiBasePath() {
 }
 
 /**
+ * Get Alertmanager receiver names for current service
+ * @returns {Array<string>} Receiver names (default: [])
+ */
+export function getAlertmanagerReceivers() {
+  const receiverConfig = getCurrentServiceConfig('prometheus.alertmanagerReceiver', null)
+  const receiversConfig = getCurrentServiceConfig('prometheus.alertmanagerReceivers', null)
+
+  const normalize = (value) => {
+    if (Array.isArray(value)) {
+      return value.map(item => String(item).trim()).filter(Boolean)
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      return trimmed ? [trimmed] : []
+    }
+    return []
+  }
+
+  const receivers = normalize(receiversConfig)
+  if (receivers.length > 0) {
+    return receivers
+  }
+  return normalize(receiverConfig)
+}
+
+/**
  * Get Prometheus task label for current service
  * @returns {string} Task label (default: 'job')
  */
@@ -429,4 +455,28 @@ export function isDeadManSwitchEnabled() {
  */
 export function getDeadManSwitchAlertName() {
   return getCurrentServiceConfig('prometheus.deadManSwitch.alertName', '')
+}
+
+/**
+ * Get Prometheus severity levels configuration for current service
+ * @returns {Array<string>} Severity levels order (default: ['critical', 'warning', 'info'])
+ */
+export function getPrometheusSeverityLevels() {
+  return getCurrentServiceConfig('prometheus.severityLevels', ['critical', 'warning', 'info'])
+}
+
+/**
+ * Get Prometheus severity label name for current service
+ * @returns {string} Severity label name (default: 'severity')
+ */
+export function getPrometheusSeverityLabel() {
+  return getCurrentServiceConfig('prometheus.severityLabel', 'severity')
+}
+
+/**
+ * Get Alertmanager global alert mute duration in minutes
+ * @returns {number} Mute duration in minutes (default: 10)
+ */
+export function getAlertmanagerAlertMuteMinutes() {
+  return getCurrentServiceConfig('prometheus.alertmanagerAlertMuteMinutes', 10)
 }

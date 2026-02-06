@@ -1,10 +1,8 @@
 import axios from 'axios'
 import {
   getPrometheusApiBasePath,
-  getAlertmanagerApiBasePath,
   getPrometheusMaxRetries,
-  getPrometheusRetryBaseDelay,
-  getCurrentServiceConfig
+  getPrometheusRetryBaseDelay
 } from '../utils/config'
 
 /**
@@ -33,14 +31,15 @@ async function retryWithBackoff(fn, maxRetries = null, baseDelay = null) {
 }
 
 /**
- * Get all active alerts from Prometheus
- * @returns {Promise<Array>} Array of alert objects
+ * Get all alerts from unified /api/v1/alerts/all endpoint
+ * This endpoint returns alerts with complete metric labels already included
+ * @returns {Promise<Array>} Array of alert objects with rule metadata and metric labels
  */
 export async function getAlerts() {
   const apiBasePath = getPrometheusApiBasePath()
 
   const requestFn = async () => {
-    const response = await axios.get(`${apiBasePath}/alerts`)
+    const response = await axios.get(`${apiBasePath}/alerts/all`)
     return response
   }
 
@@ -48,7 +47,18 @@ export async function getAlerts() {
     const response = await retryWithBackoff(requestFn)
 
     if (response.data?.status === 'success') {
-      return response.data.data?.alerts || []
+      const alerts = response.data.data?.alerts || []
+
+      // Enrich alerts: copy top-level 'name' field to labels for easier grouping
+      alerts.forEach(alert => {
+        if (alert.name && !alert.labels.name) {
+          alert.labels.name = alert.name
+        }
+      })
+
+      console.log(`[Prometheus] Fetched ${alerts.length} alerts from unified endpoint`)
+
+      return alerts
     } else {
       console.error('[Prometheus] Invalid response format:', response.data)
       return []
@@ -136,27 +146,6 @@ export async function queryInstant(query, time = null) {
 }
 
 /**
- * Get silences from Alertmanager (reserved for future use)
- * @returns {Promise<Array>} Array of silence objects
- */
-export async function getSilences() {
-  const apiBasePath = getAlertmanagerApiBasePath()
-
-  const requestFn = async () => {
-    const response = await axios.get(`${apiBasePath}/silences`)
-    return response
-  }
-
-  try {
-    const response = await retryWithBackoff(requestFn)
-    return response.data || []
-  } catch (error) {
-    console.error('[Alertmanager] Failed to fetch silences:', error)
-    throw error
-  }
-}
-
-/**
  * Build alert matchers from fixed labels and dynamic filters
  * @param {Object} fixedLabels - Fixed labels from config
  * @param {Object} filters - Dynamic filters (e.g., { job: 'api-server' })
@@ -188,13 +177,34 @@ export function filterAlerts(alerts, matchers = {}) {
  * Group alerts by label value
  * @param {Array} alerts - Array of alert objects
  * @param {string} labelName - Label name to group by
+ * @param {string} labelSource - Source of label ('alertLabels' | 'metricLabels')
  * @returns {Map<string, Array>} Map of label value to alerts
  */
-export function groupAlertsByLabel(alerts, labelName) {
+export function groupAlertsByLabel(alerts, labelName, labelSource = 'alertLabels') {
   const groups = new Map()
 
   alerts.forEach(alert => {
-    const labelValue = alert.labels?.[labelName] || 'unknown'
+    let labelValue
+
+    // Determine label source
+    if (labelSource === 'metricLabels') {
+      // Use metricLabels only, skip if not available
+      labelValue = alert.metricLabels?.[labelName]
+
+      // Skip this alert if metricLabels don't have the required label
+      if (!labelValue) {
+        return
+      }
+    } else {
+      // Use alert labels only
+      labelValue = alert.labels?.[labelName]
+
+      // Use 'unknown' for missing alert labels
+      if (!labelValue) {
+        labelValue = 'unknown'
+      }
+    }
+
     if (!groups.has(labelValue)) {
       groups.set(labelValue, [])
     }

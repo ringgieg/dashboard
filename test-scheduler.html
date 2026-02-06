@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RuleQueryScheduler 测试</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 30px;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+      border-bottom: 3px solid #409eff;
+      padding-bottom: 10px;
+    }
+
+    h2 {
+      color: #666;
+      margin-top: 30px;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+
+    .test-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 6px;
+      border-left: 4px solid #409eff;
+    }
+
+    .log {
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 500px;
+      overflow-y: auto;
+      margin-top: 15px;
+      line-height: 1.6;
+    }
+
+    .log-entry {
+      margin: 4px 0;
+      padding: 2px 0;
+    }
+
+    .log-success {
+      color: #2ecc71;
+    }
+
+    .log-error {
+      color: #e74c3c;
+    }
+
+    .log-info {
+      color: #3498db;
+    }
+
+    .log-warning {
+      color: #f39c12;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      text-align: center;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      color: #333;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+
+    button.primary {
+      background: #409eff;
+      color: white;
+    }
+
+    button.primary:hover {
+      background: #66b1ff;
+    }
+
+    button.danger {
+      background: #f56c6c;
+      color: white;
+    }
+
+    button.danger:hover {
+      background: #f78989;
+    }
+
+    button.success {
+      background: #67c23a;
+      color: white;
+    }
+
+    button.success:hover {
+      background: #85ce61;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .summary {
+      margin-top: 30px;
+      padding: 20px;
+      background: #ecf5ff;
+      border-radius: 6px;
+      border-left: 4px solid #409eff;
+    }
+
+    .summary h3 {
+      margin-bottom: 15px;
+      color: #409eff;
+    }
+
+    .summary-stats {
+      display: flex;
+      gap: 30px;
+      font-size: 16px;
+    }
+
+    .summary-passed {
+      color: #67c23a;
+      font-weight: bold;
+    }
+
+    .summary-failed {
+      color: #f56c6c;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 RuleQueryScheduler 测试套件</h1>
+
+    <div class="controls">
+      <button class="primary" onclick="runAllTests()">运行所有测试</button>
+      <button class="success" onclick="runTest1()">测试1: 时间间隔解析</button>
+      <button class="success" onclick="runTest2()">测试2: 优先队列排序</button>
+      <button class="success" onclick="runTest3()">测试3: 执行时机</button>
+      <button class="success" onclick="runTest4()">测试4: 失败处理</button>
+      <button class="success" onclick="runTest5()">测试5: 动态更新</button>
+      <button class="danger" onclick="clearLog()">清除日志</button>
+    </div>
+
+    <div class="stats" id="stats">
+      <div class="stat-card">
+        <div class="stat-label">测试通过</div>
+        <div class="stat-value" id="passed">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">测试失败</div>
+        <div class="stat-value" id="failed">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">总计</div>
+        <div class="stat-value" id="total">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">通过率</div>
+        <div class="stat-value" id="passRate">0%</div>
+      </div>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <div class="summary" id="summary" style="display: none;">
+      <h3>📊 测试总结</h3>
+      <div class="summary-stats">
+        <span>总计: <span id="summaryTotal">0</span></span>
+        <span class="summary-passed">✓ 通过: <span id="summaryPassed">0</span></span>
+        <span class="summary-failed">✗ 失败: <span id="summaryFailed">0</span></span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { RuleQueryScheduler } from './src/utils/RuleQueryScheduler.js'
+
+    let testsPassed = 0
+    let testsFailed = 0
+
+    function log(message, type = 'info') {
+      const logDiv = document.getElementById('log')
+      const entry = document.createElement('div')
+      entry.className = `log-entry log-${type}`
+
+      const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+      entry.textContent = `[${timestamp}] ${message}`
+
+      logDiv.appendChild(entry)
+      logDiv.scrollTop = logDiv.scrollHeight
+    }
+
+    function assert(condition, message) {
+      if (condition) {
+        testsPassed++
+        log(`✓ ${message}`, 'success')
+      } else {
+        testsFailed++
+        log(`✗ ${message}`, 'error')
+        throw new Error(`断言失败: ${message}`)
+      }
+      updateStats()
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms))
+    }
+
+    function updateStats() {
+      document.getElementById('passed').textContent = testsPassed
+      document.getElementById('failed').textContent = testsFailed
+      const total = testsPassed + testsFailed
+      document.getElementById('total').textContent = total
+      const rate = total > 0 ? Math.round((testsPassed / total) * 100) : 0
+      document.getElementById('passRate').textContent = rate + '%'
+    }
+
+    function showSummary() {
+      const summary = document.getElementById('summary')
+      summary.style.display = 'block'
+      document.getElementById('summaryTotal').textContent = testsPassed + testsFailed
+      document.getElementById('summaryPassed').textContent = testsPassed
+      document.getElementById('summaryFailed').textContent = testsFailed
+    }
+
+    // Mock query executor
+    function createMockExecutor(behavior = 'success') {
+      const executionLog = []
+
+      const executor = async (query) => {
+        executionLog.push({ query, timestamp: Date.now() })
+
+        await sleep(50) // Simulate network delay
+
+        if (behavior === 'success') {
+          return {
+            result: [
+              {
+                metric: { instance: 'test-instance', job: 'test-job' },
+                value: [Date.now() / 1000, '42']
+              }
+            ]
+          }
+        } else if (behavior === 'fail') {
+          throw new Error('Query execution failed')
+        } else if (behavior === 'mixed') {
+          if (executionLog.length === 1) {
+            throw new Error('First execution failed')
+          }
+          return {
+            result: [
+              {
+                metric: { instance: 'test-instance', job: 'test-job' },
+                value: [Date.now() / 1000, '100']
+              }
+            ]
+          }
+        }
+      }
+
+      executor.getLog = () => executionLog
+
+      return executor
+    }
+
+    // Test 1: Interval Parsing
+    window.runTest1 = async function() {
+      log('=== 测试 1: 时间间隔解析 ===', 'info')
+
+      const mockExecutor = createMockExecutor('success')
+      const scheduler = new RuleQueryScheduler(mockExecutor)
+
+      scheduler.addRule({ ruleId: 'rule-30s', query: 'up', interval: '30s' })
+      scheduler.addRule({ ruleId: 'rule-1m', query: 'up', interval: '1m' })
+      scheduler.addRule({ ruleId: 'rule-5m', query: 'up', interval: '5m' })
+      scheduler.addRule({ ruleId: 'rule-invalid', query: 'up', interval: 'invalid' })
+
+      const rule30s = scheduler.ruleMap.get('rule-30s')
+      const rule1m = scheduler.ruleMap.get('rule-1m')
+      const rule5m = scheduler.ruleMap.get('rule-5m')
+      const ruleInvalid = scheduler.ruleMap.get('rule-invalid')
+
+      assert(rule30s.intervalMs === 30 * 1000, '解析 30s 正确')
+      assert(rule1m.intervalMs === 60 * 1000, '解析 1m 正确')
+      assert(rule5m.intervalMs === 5 * 60 * 1000, '解析 5m 正确')
+      assert(ruleInvalid.intervalMs === 30 * 1000, '无效间隔默认为 30s')
+
+      scheduler.stop()
+      log('测试 1 完成', 'success')
+    }
+
+    // Test 2: Priority Queue Ordering
+    window.runTest2 = async function() {
+      log('=== 测试 2: 优先队列排序 ===', 'info')
+
+      const mockExecutor = createMockExecutor('success')
+      const scheduler = new RuleQueryScheduler(mockExecutor)
+
+      const now = Date.now()
+
+      scheduler.addRule({ ruleId: 'rule-late', query: 'up{job="late"}', interval: '5m' })
+      scheduler.addRule({ ruleId: 'rule-early', query: 'up{job="early"}', interval: '30s' })
+      scheduler.addRule({ ruleId: 'rule-mid', query: 'up{job="mid"}', interval: '2m' })
+
+      scheduler.ruleMap.get('rule-late').nextExecutionTime = now + 300000
+      scheduler.ruleMap.get('rule-early').nextExecutionTime = now + 30000
+      scheduler.ruleMap.get('rule-mid').nextExecutionTime = now + 120000
+
+      scheduler.queue = []
+      scheduler.enqueue(scheduler.ruleMap.get('rule-late'))
+      scheduler.enqueue(scheduler.ruleMap.get('rule-early'))
+      scheduler.enqueue(scheduler.ruleMap.get('rule-mid'))
+
+      assert(scheduler.queue[0].ruleId === 'rule-early', '队列排序: 最早的优先')
+      assert(scheduler.queue[1].ruleId === 'rule-mid', '队列排序: 中间其次')
+      assert(scheduler.queue[2].ruleId === 'rule-late', '队列排序: 最晚最后')
+
+      scheduler.stop()
+      log('测试 2 完成', 'success')
+    }
+
+    // Test 3: Execution Timing
+    window.runTest3 = async function() {
+      log('=== 测试 3: 执行时机 ===', 'info')
+
+      const mockExecutor = createMockExecutor('success')
+      const scheduler = new RuleQueryScheduler(mockExecutor)
+
+      scheduler.addRule({ ruleId: 'rule-2s', query: 'up', interval: '2s' })
+      scheduler.start()
+
+      log('等待首次执行...', 'info')
+      await sleep(1500)
+      const log1 = mockExecutor.getLog()
+      assert(log1.length >= 1, '规则启动时立即执行')
+
+      log('等待第二次执行 (2s 间隔)...', 'info')
+      await sleep(2500)
+      const log2 = mockExecutor.getLog()
+      assert(log2.length >= 2, '规则在间隔后重新执行')
+
+      if (log2.length >= 2) {
+        const timeDiff = log2[1].timestamp - log2[0].timestamp
+        assert(timeDiff >= 2000 && timeDiff <= 3000, `执行间隔约为 2s (实际: ${timeDiff}ms)`)
+      }
+
+      scheduler.stop()
+      log('测试 3 完成', 'success')
+    }
+
+    // Test 4: Failure Handling
+    window.runTest4 = async function() {
+      log('=== 测试 4: 失败处理与数据持久化 ===', 'info')
+
+      const mockExecutor = createMockExecutor('mixed')
+      const scheduler = new RuleQueryScheduler(mockExecutor)
+
+      let resultCallbackCount = 0
+      let latestResults = null
+
+      scheduler.onResult((results) => {
+        resultCallbackCount++
+        latestResults = results
+        log(`结果回调触发 (第 ${resultCallbackCount} 次)`, 'info')
+      })
+
+      scheduler.addRule({ ruleId: 'rule-failsafe', query: 'up', interval: '2s' })
+      scheduler.start()
+
+      log('等待首次执行 (将失败)...', 'info')
+      await sleep(1500)
+      const rule = scheduler.ruleMap.get('rule-failsafe')
+      assert(rule.lastResult === null, '失败后无结果')
+
+      log('等待第二次执行 (将成功)...', 'info')
+      await sleep(2500)
+      assert(rule.lastResult !== null, '成功后存储结果')
+      const successResult = rule.lastResult
+
+      log('模拟后续执行失败...', 'info')
+      mockExecutor.behavior = 'fail'
+
+      await sleep(2500)
+      assert(rule.lastResult === successResult, '失败后保留之前的结果')
+      assert(latestResults && latestResults.has('up'), '结果映射包含查询')
+
+      scheduler.stop()
+      log('测试 4 完成', 'success')
+    }
+
+    // Test 5: Dynamic Rule Updates
+    window.runTest5 = async function() {
+      log('=== 测试 5: 动态规则更新 ===', 'info')
+
+      const mockExecutor = createMockExecutor('success')
+      const scheduler = new RuleQueryScheduler(mockExecutor)
+
+      const alerts1 = [
+        {
+          labels: { alertname: 'Alert1' },
+          rule: { name: 'Alert1', query: 'up{job="test1"}', duration: '30s' }
+        },
+        {
+          labels: { alertname: 'Alert2' },
+          rule: { name: 'Alert2', query: 'up{job="test2"}', duration: '1m' }
+        }
+      ]
+
+      log('添加初始告警规则...', 'info')
+      scheduler.updateRules(alerts1)
+      assert(scheduler.ruleMap.size === 2, '添加了 2 条规则')
+      assert(scheduler.ruleMap.has('Alert1'), 'Alert1 规则存在')
+      assert(scheduler.ruleMap.has('Alert2'), 'Alert2 规则存在')
+
+      const alerts2 = [
+        {
+          labels: { alertname: 'Alert1' },
+          rule: { name: 'Alert1', query: 'up{job="test1"}', duration: '2m' }
+        },
+        {
+          labels: { alertname: 'Alert3' },
+          rule: { name: 'Alert3', query: 'up{job="test3"}', duration: '5m' }
+        }
+      ]
+
+      log('更新告警规则 (Alert1 间隔改变, Alert2 移除, Alert3 添加)...', 'info')
+      scheduler.updateRules(alerts2)
+      assert(scheduler.ruleMap.size === 2, '更新后仍为 2 条规则')
+      assert(scheduler.ruleMap.has('Alert1'), 'Alert1 仍存在')
+      assert(!scheduler.ruleMap.has('Alert2'), 'Alert2 已移除')
+      assert(scheduler.ruleMap.has('Alert3'), 'Alert3 已添加')
+      assert(scheduler.ruleMap.get('Alert1').interval === '2m', 'Alert1 间隔已更新')
+
+      scheduler.stop()
+      log('测试 5 完成', 'success')
+    }
+
+    // Run all tests
+    window.runAllTests = async function() {
+      testsPassed = 0
+      testsFailed = 0
+      clearLog()
+
+      log('🚀 开始运行所有测试...', 'info')
+
+      try {
+        await runTest1()
+        await runTest2()
+        await runTest3()
+        await runTest4()
+        await runTest5()
+
+        log('', 'info')
+        log('==================================', 'info')
+        log(`测试结果: ${testsPassed} 通过, ${testsFailed} 失败`, 'info')
+        log('==================================', 'info')
+
+        if (testsFailed === 0) {
+          log('✅ 所有测试通过!', 'success')
+        } else {
+          log('❌ 部分测试失败!', 'error')
+        }
+
+        showSummary()
+      } catch (error) {
+        log(`❌ 测试套件失败: ${error.message}`, 'error')
+        console.error(error)
+      }
+    }
+
+    window.clearLog = function() {
+      document.getElementById('log').innerHTML = ''
+      document.getElementById('summary').style.display = 'none'
+    }
+
+    // Auto-run on load
+    log('✨ RuleQueryScheduler 测试套件已加载', 'success')
+    log('点击 "运行所有测试" 按钮开始测试', 'info')
+  </script>
+</body>
+</html>

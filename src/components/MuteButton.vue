@@ -8,7 +8,8 @@
         <MuteNotification v-if="alertStore.muteUntil === -1" />
         <Bell v-else />
       </el-icon>
-      <span>{{ alertStore.muteUntil === -1 ? '永久静音' : '静默设置' }}</span>
+      <span v-if="alertStore.muteUntil === -1">&#x6c38;&#x4e45;&#x9759;&#x97f3;</span>
+      <span v-else>&#x9759;&#x97f3;&#x8bbe;&#x7f6e;</span>
       <el-badge
         v-if="alertStore.isMuted && alertStore.muteUntil !== -1"
         :value="alertStore.getRemainingMuteMinutes() + 'm'"
@@ -19,43 +20,43 @@
       <el-dropdown-menu>
         <el-dropdown-item command="0" :disabled="!alertStore.isMuted">
           <el-icon><CircleClose /></el-icon>
-          <span>取消静默</span>
+          <span>&#x53d6;&#x6d88;&#x9759;&#x97f3;</span>
         </el-dropdown-item>
         <el-dropdown-item divided command="5">
           <el-icon><Clock /></el-icon>
-          <span>静默 5 分钟</span>
+          <span>&#x9759;&#x97f3; 5 &#x5206;&#x949f;</span>
         </el-dropdown-item>
         <el-dropdown-item command="15">
           <el-icon><Clock /></el-icon>
-          <span>静默 15 分钟</span>
+          <span>&#x9759;&#x97f3; 15 &#x5206;&#x949f;</span>
         </el-dropdown-item>
         <el-dropdown-item command="30">
           <el-icon><Clock /></el-icon>
-          <span>静默 30 分钟</span>
+          <span>&#x9759;&#x97f3; 30 &#x5206;&#x949f;</span>
         </el-dropdown-item>
         <el-dropdown-item command="60">
           <el-icon><Clock /></el-icon>
-          <span>静默 1 小时</span>
+          <span>&#x9759;&#x97f3; 1 &#x5c0f;&#x65f6;</span>
         </el-dropdown-item>
         <el-dropdown-item command="120">
           <el-icon><Clock /></el-icon>
-          <span>静默 2 小时</span>
+          <span>&#x9759;&#x97f3; 2 &#x5c0f;&#x65f6;</span>
         </el-dropdown-item>
         <el-dropdown-item command="300">
           <el-icon><Clock /></el-icon>
-          <span>静默 5 小时</span>
+          <span>&#x9759;&#x97f3; 5 &#x5c0f;&#x65f6;</span>
         </el-dropdown-item>
         <el-dropdown-item command="480">
           <el-icon><Clock /></el-icon>
-          <span>静默 8 小时</span>
+          <span>&#x9759;&#x97f3; 8 &#x5c0f;&#x65f6;</span>
         </el-dropdown-item>
         <el-dropdown-item command="600">
           <el-icon><Clock /></el-icon>
-          <span>静默 10 小时</span>
+          <span>&#x9759;&#x97f3; 10 &#x5c0f;&#x65f6;</span>
         </el-dropdown-item>
         <el-dropdown-item divided command="-1">
           <el-icon><BellFilled /></el-icon>
-          <span>永久静默</span>
+          <span>&#x6c38;&#x4e45;&#x9759;&#x97f3;</span>
         </el-dropdown-item>
       </el-dropdown-menu>
     </template>

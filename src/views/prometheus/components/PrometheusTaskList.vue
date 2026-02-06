@@ -31,7 +31,7 @@
         <div class="task-info">
           <span class="task-icon all-alerts">●</span>
           <span class="task-name">全部告警</span>
-          <span class="alert-count">{{ prometheusStore.alertCounts.total }}</span>
+          <span v-if="activeAlertTotal > 0" class="alert-count">{{ activeAlertTotal }}</span>
         </div>
       </div>
 
@@ -42,7 +42,8 @@
         class="task-item"
         :class="{
           'is-selected': route.params.taskName === task.name,
-          'is-unwatched': !task.watched
+          'is-unwatched': !task.watched,
+          'has-alertmanager-match': hasAlertmanagerMatch(task.name)
         }"
         @click="selectTask(task.name)"
         @contextmenu.prevent="showContextMenu($event, task)"
@@ -57,7 +58,13 @@
           >
             无告警
           </span>
-          <span class="alert-count">{{ getTaskAlertCount(task.name) }}</span>
+          <span
+            v-if="getTaskAlertCount(task.name) > 0"
+            class="alert-count"
+            :class="getAlertCountClass(task.name)"
+          >
+            {{ getTaskAlertCount(task.name) }}
+          </span>
         </div>
       </div>
 
@@ -67,7 +74,9 @@
     </div>
 
     <div class="task-list-footer">
-      <span class="task-count">共 {{ prometheusStore.tasks.length }} 个任务</span>
+      <span class="task-count">
+        共 {{ totalAlertCount }} 个监控项
+      </span>
       <div class="footer-actions">
         <MuteButton v-if="kioskMode" size="small" />
         <el-button
@@ -151,6 +160,32 @@ const filteredTasks = computed(() => {
   )
 })
 
+const activeAlertTotal = computed(() => {
+  return (prometheusStore.alertCounts.firing || 0) + (prometheusStore.alertCounts.pending || 0)
+})
+
+const totalAlertCount = computed(() => {
+  return prometheusStore.alertCounts.total || 0
+})
+const taskAlertmanagerMatchMap = computed(() => {
+  const taskLabel = getPrometheusTaskLabel()
+  const matchedTasks = new Set()
+
+  prometheusStore.alerts.forEach(alert => {
+    if (!alert.alertmanagerMatched) return
+    const taskName = alert.labels?.[taskLabel]
+    if (taskName) {
+      matchedTasks.add(taskName)
+    }
+  })
+
+  return matchedTasks
+})
+
+function hasAlertmanagerMatch(taskName) {
+  return taskAlertmanagerMatchMap.value.has(taskName)
+}
+
 function getTaskIconClass(task) {
   if (!task.watched) {
     return 'unwatched'
@@ -163,18 +198,40 @@ function getTaskIconClass(task) {
     return 'normal'
   }
 
-  // Check if any firing alerts
+  // Check alert states
   const taskLabel = getPrometheusTaskLabel()
   const taskAlerts = filterAlerts(prometheusStore.alerts, { [taskLabel]: task.name })
   const hasFiring = taskAlerts.some(alert => alert.state === 'firing')
+  const hasPending = taskAlerts.some(alert => alert.state === 'pending')
 
-  return hasFiring ? 'has-firing' : 'has-pending'
+  // Only show warning/danger if there are actual firing or pending alerts
+  if (hasFiring) return 'has-firing'
+  if (hasPending) return 'has-pending'
+
+  // All alerts are inactive - show as normal (green)
+  return 'normal'
 }
 
 function getTaskAlertCount(taskName) {
   const taskLabel = getPrometheusTaskLabel()
   const taskAlerts = filterAlerts(prometheusStore.alerts, { [taskLabel]: taskName })
-  return taskAlerts.length
+  return taskAlerts.filter(alert => alert.state === 'firing' || alert.state === 'pending').length
+}
+
+function getAlertCountClass(taskName) {
+  const taskLabel = getPrometheusTaskLabel()
+  const taskAlerts = filterAlerts(prometheusStore.alerts, { [taskLabel]: taskName })
+
+  if (taskAlerts.length === 0) {
+    return 'count-normal'
+  }
+
+  const hasFiring = taskAlerts.some(alert => alert.state === 'firing')
+  const hasPending = taskAlerts.some(alert => alert.state === 'pending')
+
+  if (hasFiring) return 'count-firing'
+  if (hasPending) return 'count-pending'
+  return 'count-normal'
 }
 
 function selectTask(taskName) {
@@ -287,6 +344,45 @@ onUnmounted(() => {
   border-color: var(--el-color-primary);
 }
 
+.task-item.has-alertmanager-match {
+  position: relative;
+  background: #fef2f2; /* red-50 */
+  border-color: #fecaca; /* red-200 */
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.18); /* red-400 ring */
+  overflow: hidden;
+}
+
+.task-item.has-alertmanager-match.is-selected {
+  background: #fee2e2; /* red-100 */
+  border-color: #f87171; /* red-400 */
+}
+
+.task-item.has-alertmanager-match::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    rgba(248, 113, 113, 0.12) 0%,
+    rgba(248, 113, 113, 0.26) 35%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(248, 113, 113, 0.26) 65%,
+    rgba(248, 113, 113, 0.12) 100%
+  );
+  background-size: 300% 100%;
+  animation: taskShimmer 1.9s linear infinite;
+  pointer-events: none;
+}
+
+.task-item.has-alertmanager-match::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.25), 0 0 0 0 rgba(248, 113, 113, 0.35);
+  animation: taskPulse 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
 .task-item.is-unwatched {
   opacity: 0.6;
 }
@@ -320,6 +416,16 @@ onUnmounted(() => {
 
 .task-icon.has-firing {
   color: var(--el-color-danger);
+  animation: pulse-icon 2s ease-in-out infinite;
+}
+
+@keyframes pulse-icon {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .task-name {
@@ -341,12 +447,30 @@ onUnmounted(() => {
 }
 
 .alert-count {
-  font-size: 12px;
-  padding: 2px 8px;
-  background: var(--el-color-info-light-9);
-  color: var(--el-color-info);
+  font-size: 11px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
   border-radius: 10px;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.alert-count.count-normal {
+  background: var(--el-fill-color-dark);
+  color: var(--el-text-color-secondary);
+}
+
+.alert-count.count-pending {
+  background: var(--el-color-warning);
+  color: var(--el-bg-color);
+}
+
+.alert-count.count-firing {
+  background: var(--el-color-danger);
+  color: var(--el-bg-color);
 }
 
 .no-tasks {
@@ -389,6 +513,24 @@ onUnmounted(() => {
   }
   50% {
     opacity: 0.7;
+  }
+}
+
+@keyframes taskShimmer {
+  from {
+    background-position: 0% 0%;
+  }
+  to {
+    background-position: 300% 0%;
+  }
+}
+
+@keyframes taskPulse {
+  0%, 100% {
+    box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.25), 0 0 0 0 rgba(248, 113, 113, 0.35);
+  }
+  50% {
+    box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.45), 0 0 0 3px rgba(248, 113, 113, 0.22);
   }
 }
 

@@ -1,20 +1,22 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import {
-  getAlerts,
-  getLabelValues,
-  filterAlerts,
-  groupAlertsByLabel
-} from '../api/prometheus'
+import { getAlerts, filterAlerts, groupAlertsByLabel } from '../api/prometheus'
+import { getAlertmanagerAlerts, getAlertmanagerSilences } from '../api/alertmanager'
 import {
   getPrometheusTaskLabel,
   getPrometheusFixedLabels,
   getPrometheusPollingInterval,
   getPrometheusColumns,
   isDeadManSwitchEnabled,
-  getDeadManSwitchAlertName
+  getDeadManSwitchAlertName,
+  getAlertmanagerReceivers
 } from '../utils/config'
+import {
+  applyAlertmanagerReceiverMapping,
+  filterAlertmanagerAlertsByReceivers,
+  resolveAlertmanagerState
+} from '../utils/alertmanager'
 import { useServiceStore } from './serviceStore'
 import { useAlertStore } from './alertStore'
 
@@ -23,6 +25,9 @@ const STORAGE_KEY_PREFIX = 'dashboard-watched-prometheus-tasks'
 export const usePrometheusStore = defineStore('prometheus', () => {
   // State
   const alerts = ref([])
+  const alertmanagerAlerts = ref([])
+  const alertmanagerReceiverAlerts = ref([])
+  const alertmanagerSilences = ref([])
   const tasks = ref([])
   const watchedTasks = ref(new Set())
   const selectedTask = ref(null)
@@ -116,48 +121,101 @@ export const usePrometheusStore = defineStore('prometheus', () => {
   // Initialize store
   async function initialize() {
     loadWatchedTasks()
-    await fetchTasks()
-    await fetchAlerts()
+
+    await fetchAlerts({ showLoading: true })
+    updateTasksFromAlerts()
     startPolling()
   }
 
-  // Fetch available tasks from label values
-  async function fetchTasks() {
-    loading.value = true
+  // Update tasks from alerts (extract unique task label values from alerts)
+  function updateTasksFromAlerts() {
     try {
       const taskLabel = getPrometheusTaskLabel()
-      const fixedLabels = getPrometheusFixedLabels()
 
-      const taskNames = await getLabelValues(taskLabel, fixedLabels)
+      // Extract unique task names from alerts
+      const taskNamesFromAlerts = new Set()
+      alerts.value.forEach(alert => {
+        const taskName = alert.labels?.[taskLabel]
+        if (taskName) {
+          taskNamesFromAlerts.add(taskName)
+        }
+      })
 
       // Merge with watched tasks
-      const allTaskNames = new Set([...taskNames, ...watchedTasks.value])
+      const allTaskNames = new Set([...taskNamesFromAlerts, ...watchedTasks.value])
 
       tasks.value = Array.from(allTaskNames).map(name => ({
         name,
         watched: watchedTasks.value.has(name),
-        existsInPrometheus: taskNames.includes(name)
+        existsInPrometheus: taskNamesFromAlerts.has(name)
       }))
 
-      console.log(`[PrometheusStore] Fetched ${tasks.value.length} tasks`)
+      console.log(`[PrometheusStore] Updated ${tasks.value.length} tasks from ${alerts.value.length} alerts`)
     } catch (e) {
-      console.error('[PrometheusStore] Error fetching tasks:', e)
-      ElMessage.error('获取任务列表失败')
-    } finally {
-      loading.value = false
+      console.error('[PrometheusStore] Error updating tasks:', e)
+    }
+  }
+
+  async function refreshAlertmanagerSilences(receiverNames = null) {
+    const names = Array.isArray(receiverNames) ? receiverNames : getAlertmanagerReceivers()
+    if (!names || names.length === 0) {
+      alertmanagerSilences.value = []
+      return []
+    }
+
+    try {
+      const response = await getAlertmanagerSilences()
+      const silences = Array.isArray(response)
+        ? response
+        : (Array.isArray(response?.data) ? response.data : [])
+      alertmanagerSilences.value = silences
+      return silences
+    } catch (error) {
+      console.warn('[PrometheusStore] Alertmanager silences fetch failed:', error)
+      alertmanagerSilences.value = []
+      return []
     }
   }
 
   // Fetch alerts
-  async function fetchAlerts() {
+  async function fetchAlerts(options = {}) {
+    const { showLoading = false } = options
+    if (showLoading) {
+      loading.value = true
+    }
     try {
+      const receiverNames = getAlertmanagerReceivers()
+      const alertmanagerPromise = receiverNames.length > 0
+        ? getAlertmanagerAlerts().catch(error => {
+          console.warn('[PrometheusStore] Alertmanager fetch failed:', error)
+          return []
+        })
+        : Promise.resolve([])
+      const silencesPromise = receiverNames.length > 0
+        ? refreshAlertmanagerSilences(receiverNames)
+        : Promise.resolve([])
+
       const allAlerts = await getAlerts()
       const fixedLabels = getPrometheusFixedLabels()
 
       // Filter by fixed labels
       alerts.value = filterAlerts(allAlerts, fixedLabels)
 
+      const fetchedAlertmanagerAlerts = await alertmanagerPromise
+      alertmanagerAlerts.value = fetchedAlertmanagerAlerts
+      await silencesPromise
+      const receiverAlerts = receiverNames.length > 0
+        ? filterAlertmanagerAlertsByReceivers(fetchedAlertmanagerAlerts, receiverNames)
+        : []
+      alertmanagerReceiverAlerts.value = receiverAlerts
+
+      // Map receiver alerts back to vmalert alerts for UI use
+      applyAlertmanagerReceiverMapping(alerts.value, receiverAlerts)
+
       console.log(`[PrometheusStore] Fetched ${alerts.value.length} alerts`)
+
+      // Update tasks from alerts
+      updateTasksFromAlerts()
 
       // Check DeadManSwitch first
       checkDeadManSwitch()
@@ -167,21 +225,52 @@ export const usePrometheusStore = defineStore('prometheus', () => {
     } catch (e) {
       console.error('[PrometheusStore] Error fetching alerts:', e)
       ElMessage.error('获取告警列表失败')
+    } finally {
+      if (showLoading) {
+        loading.value = false
+      }
     }
   }
 
   // Check for firing alerts and trigger alert overlay (excluding DeadManSwitch)
   function checkForFiringAlerts() {
     const alertStore = useAlertStore()
-    // Filter out DeadManSwitch alerts
-    const firingAlerts = alerts.value.filter(alert =>
-      alert.state === 'firing' && !isDeadManSwitchAlert(alert)
-    )
+    const receiverNames = getAlertmanagerReceivers()
+    const useAlertmanager = receiverNames.length > 0
+
+    // Only Alertmanager alerts are allowed to trigger global alert overlay
+    if (!useAlertmanager) {
+      return
+    }
+
+    const sourceAlerts = alertmanagerReceiverAlerts.value
+
+    const firingAlerts = sourceAlerts.filter(alert => {
+      if (isDeadManSwitchAlert(alert)) {
+        return false
+      }
+
+      const state = resolveAlertmanagerState(alert)
+      if (state !== 'active' && state !== 'firing') {
+        return false
+      }
+
+      const fingerprint = alert.fingerprint || alert.labels?.fingerprint
+      if (fingerprint && alertStore.isAlertmanagerFingerprintMuted(fingerprint)) {
+        return false
+      }
+
+      return true
+    })
 
     if (firingAlerts.length > 0) {
       const reasons = firingAlerts.map(alert => {
-        const alertname = alert.labels?.alertname || 'Unknown'
-        const instance = alert.labels?.instance || ''
+        const alertname = alert.labels?.alertname || alert.labels?.name || alert.name || 'Unknown'
+        const instance = alert.labels?.instance || alert.labels?.job || ''
+        const fingerprint = alert.fingerprint || alert.labels?.fingerprint
+        if (fingerprint) {
+          alertStore.addAlertFingerprint(fingerprint)
+        }
         return instance ? `${alertname} (${instance})` : alertname
       })
 
@@ -283,10 +372,9 @@ export const usePrometheusStore = defineStore('prometheus', () => {
     }
   }
 
-  // Refresh (fetch tasks and alerts)
+  // Refresh (fetch alerts which will also update tasks)
   async function refresh() {
-    await fetchTasks()
-    await fetchAlerts()
+    await fetchAlerts({ showLoading: true })
   }
 
   // Toggle task watch status
@@ -318,9 +406,9 @@ export const usePrometheusStore = defineStore('prometheus', () => {
   }
 
   // Build hierarchical alert structure for display
-  function buildAlertHierarchy() {
+  function buildAlertHierarchy(alerts = null) {
     const columns = getPrometheusColumns()
-    const taskAlerts = selectedTaskAlerts.value
+    const taskAlerts = alerts || selectedTaskAlerts.value
 
     // If no columns configured, return flat structure
     if (!columns || columns.length === 0) {
@@ -339,44 +427,75 @@ export const usePrometheusStore = defineStore('prometheus', () => {
     }]
   }
 
+  // Get display value from annotation if configured
+  function getDisplayValue(alerts, originalValue, annotationKey) {
+    if (!annotationKey || !alerts || alerts.length === 0) {
+      return originalValue
+    }
+
+    // Traverse alerts to find the first one with the annotation value
+    for (const alert of alerts) {
+      const annotationValue = alert.annotations?.[annotationKey]
+      if (annotationValue) {
+        return annotationValue
+      }
+    }
+
+    return originalValue
+  }
+
   // Build hierarchical structure (with columns)
   function buildHierarchicalStructure(alerts, columns) {
     const result = []
+    const sortKeys = (a, b) => String(a).localeCompare(String(b), 'en', { numeric: true, sensitivity: 'base' })
 
     // Process each column configuration
     columns.forEach(columnConfig => {
       const columnLabel = columnConfig.label
+      const columnLabelSource = columnConfig.labelSource || 'alertLabels'
+      const columnDisplayAnnotation = columnConfig.displayNameAnnotation
       const gridConfig = columnConfig.grids
       const itemConfig = gridConfig?.items
 
-      // Group alerts by column label
-      const columnGroups = groupAlertsByLabel(alerts, columnLabel)
+      // Group alerts by column label with labelSource
+      const columnGroups = groupAlertsByLabel(alerts, columnLabel, columnLabelSource)
 
-      columnGroups.forEach((columnAlerts, columnValue) => {
+      const sortedColumnEntries = Array.from(columnGroups.entries()).sort(([a], [b]) => sortKeys(a, b))
+
+      sortedColumnEntries.forEach(([columnValue, columnAlerts]) => {
         const column = {
           type: 'column',
           label: columnLabel,
           value: columnValue,
+          displayValue: getDisplayValue(columnAlerts, columnValue, columnDisplayAnnotation),
           grids: []
         }
 
         if (gridConfig && gridConfig.label) {
-          // Group by grid label
-          const gridGroups = groupAlertsByLabel(columnAlerts, gridConfig.label)
+          // Group by grid label with labelSource
+          const gridLabelSource = gridConfig.labelSource || 'alertLabels'
+          const gridDisplayAnnotation = gridConfig.displayNameAnnotation
+          const gridGroups = groupAlertsByLabel(columnAlerts, gridConfig.label, gridLabelSource)
 
-          gridGroups.forEach((gridAlerts, gridValue) => {
+          const sortedGridEntries = Array.from(gridGroups.entries()).sort(([a], [b]) => sortKeys(a, b))
+
+          sortedGridEntries.forEach(([gridValue, gridAlerts]) => {
             const grid = {
               type: 'grid',
               label: gridConfig.label,
               value: gridValue,
-              items: []
+              displayValue: getDisplayValue(gridAlerts, gridValue, gridDisplayAnnotation),
+              state: getAggregatedState(gridAlerts) // Add aggregated state for grid
             }
 
             if (itemConfig && itemConfig.label) {
-              // Group by item label
-              const itemGroups = groupAlertsByLabel(gridAlerts, itemConfig.label)
+              // Has item config: Group by item label with labelSource
+              const itemLabelSource = itemConfig.labelSource || 'alertLabels'
+              const itemGroups = groupAlertsByLabel(gridAlerts, itemConfig.label, itemLabelSource)
 
-              itemGroups.forEach((itemAlerts, itemValue) => {
+              grid.items = []
+              const sortedItemEntries = Array.from(itemGroups.entries()).sort(([a], [b]) => sortKeys(a, b))
+              sortedItemEntries.forEach(([itemValue, itemAlerts]) => {
                 grid.items.push({
                   type: 'item',
                   label: itemConfig.label,
@@ -386,14 +505,8 @@ export const usePrometheusStore = defineStore('prometheus', () => {
                 })
               })
             } else {
-              // No item config, treat each alert as an item
-              gridAlerts.forEach(alert => {
-                grid.items.push({
-                  type: 'item',
-                  alerts: [alert],
-                  state: alert.state
-                })
-              })
+              // No item config: grid directly contains alerts (no item grouping)
+              grid.alerts = gridAlerts
             }
 
             column.grids.push(grid)
@@ -402,12 +515,22 @@ export const usePrometheusStore = defineStore('prometheus', () => {
           // No grid config, treat column alerts as single grid
           column.grids.push({
             type: 'grid',
+            state: getAggregatedState(columnAlerts), // Add aggregated state for grid
             alerts: columnAlerts,
-            items: columnAlerts.map(alert => ({
-              type: 'item',
-              alerts: [alert],
-              state: alert.state
-            }))
+            items: columnAlerts.map(alert => {
+              // Try to find a suitable value for display
+              const itemValue = alert.labels?.instance ||
+                               alert.labels?.job ||
+                               alert.labels?.alertname ||
+                               'unknown'
+
+              return {
+                type: 'item',
+                value: itemValue,
+                alerts: [alert],
+                state: alert.state
+              }
+            })
           })
         }
 
@@ -445,6 +568,9 @@ export const usePrometheusStore = defineStore('prometheus', () => {
   return {
     // State
     alerts,
+    alertmanagerAlerts,
+    alertmanagerReceiverAlerts,
+    alertmanagerSilences,
     tasks,
     watchedTasks,
     selectedTask,
@@ -460,9 +586,9 @@ export const usePrometheusStore = defineStore('prometheus', () => {
 
     // Actions
     initialize,
-    fetchTasks,
     fetchAlerts,
     refresh,
+    refreshAlertmanagerSilences,
     startPolling,
     stopPolling,
     pollOnce,

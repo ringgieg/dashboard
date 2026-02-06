@@ -4,13 +4,19 @@ import { getConfig, getCurrentServiceConfig, getLogLevelRegex, getLogLevelOrder 
 // Use nginx proxy for WebSocket connections
 // Automatically uses wss:// for HTTPS and ws:// for HTTP
 function getWebSocketUrl() {
-  const wsProtocol = getConfig('loki.wsProtocol') ||
+  const wsProtocol = getCurrentServiceConfig('loki.wsProtocol') ||
+    getConfig('loki.wsProtocol') ||
     (window.location.protocol === 'https:' ? 'wss' : 'ws')
-  const wsHost = getConfig('loki.wsHost') || window.location.host
+  const wsHost = getCurrentServiceConfig('loki.wsHost') ||
+    getConfig('loki.wsHost') ||
+    window.location.host
   return `${wsProtocol}://${wsHost}`
 }
 
-const LOKI_API_BASE = getConfig('loki.apiBasePath', '/loki/api/v1')
+function getLokiApiBase() {
+  return getCurrentServiceConfig('loki.apiBasePath') ||
+    getConfig('loki.apiBasePath', '/loki/api/v1')
+}
 
 // Request queue to limit concurrent requests (Map by query key)
 const pendingRequests = new Map()
@@ -90,7 +96,7 @@ export async function queryLogsWithCursor(query, options = {}) {
   }
 
   const requestFn = async () => {
-    const response = await axios.get(`${LOKI_API_BASE}/query_range`, { params })
+    const response = await axios.get(`${getLokiApiBase()}/query_range`, { params })
     return response
   }
 
@@ -137,7 +143,7 @@ export function tailLogs(query, callbacks = {}) {
     limit: String(tailLimit)
   })
 
-  const wsUrl = `${getWebSocketUrl()}${LOKI_API_BASE}/tail?${params.toString()}`
+  const wsUrl = `${getWebSocketUrl()}${getLokiApiBase()}/tail?${params.toString()}`
 
   let ws = null
   let reconnectAttempts = 0
@@ -262,7 +268,7 @@ function parseStreamData(streams) {
 
 export async function getLabelValues(labelName) {
   try {
-    const response = await axios.get(`${LOKI_API_BASE}/label/${labelName}/values`)
+    const response = await axios.get(`${getLokiApiBase()}/label/${labelName}/values`)
     return response.data.data || []
   } catch (error) {
     console.error(`Error getting label values for ${labelName}:`, error)
