@@ -34,7 +34,7 @@ describe('wsStore', () => {
           'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
         },
         'vmlog.fixedLabels.service': 'Test Service',
-        'vmlog.websocket.initializationDelay': 100
+        'vmlog.tail.initializationDelay': 100
       }
       return configs[path] ?? fallback
     })
@@ -123,7 +123,7 @@ describe('wsStore', () => {
             'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
           }
         }
-        if (path === 'vmlog.websocket.initializationDelay') return 100
+        if (path === 'vmlog.tail.initializationDelay') return 100
         return fallback
       })
 
@@ -168,7 +168,7 @@ describe('wsStore', () => {
             'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
           }
         }
-        if (path === 'vmlog.websocket.initializationDelay') return 100
+        if (path === 'vmlog.tail.initializationDelay') return 100
         return fallback
       })
 
@@ -200,7 +200,7 @@ describe('wsStore', () => {
             'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
           }
         }
-        if (path === 'vmlog.websocket.initializationDelay') return 100
+        if (path === 'vmlog.tail.initializationDelay') return 100
         return fallback
       })
 
@@ -228,7 +228,7 @@ describe('wsStore', () => {
       config.getCurrentServiceConfig.mockImplementation((path, fallback) => {
         if (path === 'alert.level') return 'WARN'
         if (path === 'logLevels.mapping') return null // No custom mapping
-        if (path === 'vmlog.websocket.initializationDelay') return 100
+        if (path === 'vmlog.tail.initializationDelay') return 100
         return fallback
       })
 
@@ -262,7 +262,7 @@ describe('wsStore', () => {
       config.getCurrentServiceConfig.mockImplementation((path, fallback) => {
         if (path === 'alert.level') return 'WARN'
         if (path === 'logLevels.mapping') return customMapping
-        if (path === 'vmlog.websocket.initializationDelay') return 100
+        if (path === 'vmlog.tail.initializationDelay') return 100
         return fallback
       })
 
@@ -429,7 +429,7 @@ describe('wsStore', () => {
             'DEBUG': ['ERROR', 'WARN', 'INFO', 'DEBUG']
           }
         }
-        if (path === 'vmlog.websocket.initializationDelay') return 100
+        if (path === 'vmlog.tail.initializationDelay') return 100
         return fallback
       })
 

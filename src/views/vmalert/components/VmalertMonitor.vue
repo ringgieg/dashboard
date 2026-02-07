@@ -181,7 +181,7 @@
                         </el-tag>
 
                         <AlertmanagerSilenceDropdown
-                          v-if="hasAlertmanagerMatchForGrid(grid)"
+                          v-if="hasAlertmanagerMatchForGrid(grid) && grid.state !== 'inactive'"
                           :alerts="getGridAlerts(grid)"
                           :labels="getMuteLabelsForGrid(grid, column)"
                           :context-label="`${grid.label}: ${grid.displayValue || grid.value}`"
@@ -323,6 +323,7 @@
                   </el-tag>
                 </div>
                 <AlertmanagerSilenceDropdown
+                  v-if="alert.state !== 'inactive'"
                   :alert="alert"
                   :labels="getMuteLabelsForGrid(selectedGrid, selectedColumn)"
                   :context-label="selectedGrid ? `${selectedGrid.label}: ${selectedGrid.displayValue || selectedGrid.value}` : ''"
@@ -1157,6 +1158,9 @@ watch(
   --app-surface-bluegray-2: color-mix(in srgb, var(--el-color-info) 13%, var(--el-bg-color) 87%);
   --app-border-strong: color-mix(in srgb, var(--el-text-color-primary) 16%, var(--el-border-color) 84%);
 
+  /* Grid card surface: keep light mode crisp (avoid gray cast) */
+  --app-grid-card-surface: var(--el-bg-color);
+
   /* Danger shimmer intensity: light mode one step deeper */
   --app-am-danger-shimmer-base: var(--app-danger-14);
   --app-am-danger-shimmer-peak: var(--app-danger-30);
@@ -1197,6 +1201,8 @@ watch(
 
   --app-grid-am-silenced-surface: color-mix(in srgb, var(--el-color-success) 16%, var(--app-surface-bluegray) 84%);
   --app-grid-am-silenced-surface-2: color-mix(in srgb, var(--el-color-success) 24%, var(--app-surface-bluegray) 76%);
+
+  --app-grid-card-surface: var(--app-surface-bluegray);
 }
 
 .monitor-header {
@@ -1415,7 +1421,7 @@ watch(
 }
 
 .grid-inner {
-  background: var(--app-surface-bluegray);
+  background: var(--app-grid-card-surface);
   border-radius: inherit;
   overflow: hidden;
 }

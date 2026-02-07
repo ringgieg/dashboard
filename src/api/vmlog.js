@@ -130,7 +130,7 @@ export function tailLogs(query, callbacks = {}) {
   // VictoriaLogs tailing is streaming HTTP, not WebSocket.
   // Map existing config keys to VictoriaLogs tail args.
   const tailDelayFor = getCurrentServiceConfig('vmlog.api.tailDelayFor', '0')
-  const refreshInterval = getCurrentServiceConfig('vmlog.websocket.refreshInterval', '1s')
+  const refreshInterval = getCurrentServiceConfig('vmlog.tail.refreshInterval', '1s')
 
   let abortController = null
   let reconnectAttempts = 0
@@ -138,7 +138,7 @@ export function tailLogs(query, callbacks = {}) {
   let isManualClose = false
   let isConnecting = false
   let isConnected = false
-  const reconnectDelay = getCurrentServiceConfig('vmlog.websocket.reconnectDelay', 3000)
+  const reconnectDelay = getCurrentServiceConfig('vmlog.tail.reconnectDelay', 3000)
 
   function cleanupTail() {
     if (abortController) {

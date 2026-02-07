@@ -60,7 +60,8 @@ export async function deleteAlertmanagerSilence(silenceId) {
   const apiBasePath = getAlertmanagerApiBasePath()
 
   const requestFn = async () => {
-    const response = await axios.delete(`${apiBasePath}/silences/${silenceId}`)
+    // Alertmanager v2 uses singular resource path for delete: /api/v2/silence/:id
+    const response = await axios.delete(`${apiBasePath}/silence/${silenceId}`)
     return response
   }
 

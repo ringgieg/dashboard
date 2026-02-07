@@ -18,7 +18,9 @@ window.APP_CONFIG = {
   // 主题切换（可选）
   // 按北京时间自动切换：08:25 -> 白天模式，16:25 -> 黑夜模式
   themeSchedule: {
-    mode: 'auto', // 可选：'auto'（自动切换）/ 'dark'（始终暗色）/ 'light'（始终亮色）
+    // 可选：'auto'（自动切换）/ 'dark'（始终暗色）/ 'light'（始终亮色）
+    mode: 'light', 
+    // mode: 'dark', 
     timeZone: 'Asia/Shanghai',
     dayStart: '08:25',
     nightStart: '16:25'
@@ -37,13 +39,14 @@ window.APP_CONFIG = {
       vmlog: {
         // API 配置
         apiBasePath: '/select/logsql',
-        // WebSocket host/protocol follows apiBasePath
-        websocket: {
-          reconnectDelay: 3000, // optional: reconnect delay (ms)
-          initializationDelay: 2000 // optional: delay before alerts (ms)
+        // Tail（流式日志）配置：当前实现为 HTTP 流式（fetch stream），不是 SSE/EventSource 也不是 WebSocket
+        // 旧配置名 vmlog.websocket.* 仍兼容，但建议迁移到 vmlog.tail.*
+        tail: {
+          reconnectDelay: 3000, // 可选：断线重连等待时间（ms）
+          initializationDelay: 2000, // 可选：连接建立后，延迟多久才开始触发告警计数/断线告警（ms）
+          refreshInterval: '1s' // 可选：VictoriaLogs tail 的 refresh_interval
         },
         api: {
-          tailLimit: 100,
           tailDelayFor: '0',
           maxRetries: 3,
           retryBaseDelay: 1000

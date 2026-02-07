@@ -17,12 +17,13 @@ const defaultConfig = {
   vmlog: {
     apiBasePath: '/select/logsql',
     api: {
-      tailLimit: 100,
       tailDelayFor: '0',
       maxRetries: 3,
       retryBaseDelay: 1000
     },
-    websocket: {
+    // VictoriaLogs tailing uses streaming HTTP (fetch stream), not WebSocket.
+    // `tail.*` controls reconnect and tail polling behavior.
+    tail: {
       reconnectDelay: 3000,
       initializationDelay: 2000
     }
@@ -35,7 +36,6 @@ const defaultConfig = {
       vmlog: {
         apiBasePath: '/select/logsql',
         api: {
-          tailLimit: 100,
           tailDelayFor: '0',
           maxRetries: 3,
           retryBaseDelay: 1000
@@ -45,7 +45,7 @@ const defaultConfig = {
           service: 'Batch-Sync'
         },
         taskLabel: 'task_name',
-        websocket: {
+        tail: {
           reconnectDelay: 3000,
           initializationDelay: 2000
         }
@@ -71,7 +71,7 @@ const defaultConfig = {
 
 /**
  * Get configuration value with fallback
- * @param {string} path - Dot-separated path (e.g., 'vmlog.websocket.reconnectDelay')
+ * @param {string} path - Dot-separated path (e.g., 'vmlog.tail.reconnectDelay')
  * @param {*} fallback - Fallback value if path not found
  * @returns {*} Configuration value
  */
@@ -128,6 +128,16 @@ function getAliasedPath(obj, path) {
   if (!obj || !path) return null
 
   const p = String(path)
+
+  // vmlog.websocket <-> vmlog.tail (historical naming; tailing is streaming HTTP)
+  if (p.startsWith('vmlog.websocket.')) {
+    const current = `vmlog.tail.${p.slice('vmlog.websocket.'.length)}`
+    if (hasConfigPath(obj, current)) return current
+  }
+  if (p.startsWith('vmlog.tail.')) {
+    const legacy = `vmlog.websocket.${p.slice('vmlog.tail.'.length)}`
+    if (hasConfigPath(obj, legacy)) return legacy
+  }
 
   // vmlog <-> loki
   if (p.startsWith('vmlog.')) {

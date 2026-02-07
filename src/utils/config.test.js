@@ -55,7 +55,7 @@ describe('config.js', () => {
         }
       }
 
-      expect(getConfig('vmlog.websocket.reconnectDelay')).toBe(3000)
+      expect(getConfig('vmlog.tail.reconnectDelay')).toBe(3000)
     })
 
     it('should return deeply nested config value', () => {
@@ -105,7 +105,7 @@ describe('config.js', () => {
         pageTitle: 'Batch-Sync'
       }
 
-      expect(getConfig('vmlog.websocket.reconnectDelay', 3000)).toBe(3000)
+      expect(getConfig('vmlog.tail.reconnectDelay', 3000)).toBe(3000)
     })
 
     it('should return undefined when no fallback provided for missing key', () => {

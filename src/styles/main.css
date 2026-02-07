@@ -104,5 +104,11 @@ html, body {
 }
 
 .is-loading {
+  /* Element Plus uses `.is-loading` on buttons too.
+     Keep rotation scoped to icons only to avoid rotating whole buttons. */
+  animation: none;
+}
+
+.el-icon.is-loading {
   animation: spin 1s linear infinite;
 }

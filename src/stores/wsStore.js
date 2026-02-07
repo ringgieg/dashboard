@@ -104,7 +104,7 @@ export const useWsStore = defineStore('ws', () => {
 
         // Delay marking initialization as complete to allow initial historical logs to load
         // This prevents false alerts from historical logs on page load
-        const delay = getCurrentServiceConfig('vmlog.websocket.initializationDelay', 2000)
+        const delay = getCurrentServiceConfig('vmlog.tail.initializationDelay', 2000)
         setTimeout(() => {
           isInitializing = false
           console.log('Initialization complete, now monitoring for new errors')

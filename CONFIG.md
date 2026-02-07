@@ -163,13 +163,15 @@ window.APP_CONFIG = {
   - `maxRetries`: Max retries for VMLog API requests (default: `3`)
   - `retryBaseDelay`: Base delay for exponential backoff in ms (default: `1000`)
 
-#### `vmlog.websocket`
+#### `vmlog.tail`
 - **Type**: `object`
-- **Description**: 实时 tail 的重连/刷新设置（实现为 HTTP streaming，历史命名保留为 websocket）
+- **Description**: 实时 tail 的重连/刷新设置（实现为 HTTP streaming / fetch stream，不是 SSE/EventSource 也不是 WebSocket）
 - **Fields**:
   - `refreshInterval`: Tail refresh interval (default: `'1s'`)
   - `reconnectDelay`: Reconnect delay in ms (default: `3000`)
   - `initializationDelay`: Delay before alerts in ms (default: `2000`)
+
+> 兼容性说明：旧配置名 `vmlog.websocket.*` 仍可用，但建议迁移到 `vmlog.tail.*`。
 
 #### `vmlog.fixedLabels`
 - **类型**: `object`
@@ -274,7 +276,7 @@ window.APP_CONFIG = {
 
 **注意**:
 - `vmlog.fixedLabels` 和 `vmlog.taskLabel` 必须配置在每个服务对象中
-- 全局 `vmlog` 配置（apiBasePath、api、websocket）对所有服务生效
+- 全局 `vmlog` 配置（apiBasePath、api、tail）对所有服务生效
 - 可以为不同服务配置不同的日志级别和每页条数
 - `activeService` 必须是 `services` 数组中的某个服务的 ID
 
@@ -315,14 +317,14 @@ window.APP_CONFIG = {
 
 ### 实时 Tail 配置
 
-实时 tail 断开后会持续重连，直到成功建立新连接或手动关闭（实现为 HTTP streaming，历史命名保留为 websocket）。
+实时 tail 断开后会持续重连，直到成功建立新连接或手动关闭（实现为 HTTP streaming / fetch stream）。
 
-#### `vmlog.websocket.reconnectDelay`
+#### `vmlog.tail.reconnectDelay`
 - **类型**: `number`
 - **默认值**: `3000`
 - **说明**: 重连延迟时间 (毫秒)
 
-#### `vmlog.websocket.initializationDelay`
+#### `vmlog.tail.initializationDelay`
 - **类型**: `number`
 - **默认值**: `2000`
 - **说明**: 初始化完成后多久开始监控新错误 (毫秒)
@@ -539,7 +541,7 @@ window.APP_CONFIG = {
       maxRetries: 3,
       retryBaseDelay: 1000
     },
-    websocket: {
+    tail: {
       reconnectDelay: 3000,
       initializationDelay: 2000
     }
@@ -599,3 +601,5 @@ window.APP_CONFIG = {
 - 浏览器开发者工具的 Console 面板
 - Network 面板中的 WebSocket 连接状态
 - `src/utils/config.js` 中的配置读取逻辑
+
+> 备注：tail 为 HTTP 流式请求；Network 面板里通常表现为持续进行中的 `tail` 请求，而不是 WebSocket。
