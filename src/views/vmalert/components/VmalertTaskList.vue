@@ -173,6 +173,7 @@ const taskAlertmanagerMatchMap = computed(() => {
 
   vmalertStore.alerts.forEach(alert => {
     if (!alert.alertmanagerMatched) return
+    if (alert.state !== 'firing') return
     const taskName = alert.labels?.[taskLabel]
     if (taskName) {
       matchedTasks.add(taskName)
@@ -202,11 +203,10 @@ function getTaskIconClass(task) {
   const taskLabel = getPrometheusTaskLabel()
   const taskAlerts = filterAlerts(vmalertStore.alerts, { [taskLabel]: task.name })
   const hasFiring = taskAlerts.some(alert => alert.state === 'firing')
-  const hasPending = taskAlerts.some(alert => alert.state === 'pending')
 
-  // Only show warning/danger if there are actual firing or pending alerts
+  // Only highlight tasks when there are firing alerts.
+  // Pending-only tasks should still be counted, but remain visually neutral.
   if (hasFiring) return 'has-firing'
-  if (hasPending) return 'has-pending'
 
   // All alerts are inactive - show as normal (green)
   return 'normal'
@@ -227,10 +227,8 @@ function getAlertCountClass(taskName) {
   }
 
   const hasFiring = taskAlerts.some(alert => alert.state === 'firing')
-  const hasPending = taskAlerts.some(alert => alert.state === 'pending')
 
   if (hasFiring) return 'count-firing'
-  if (hasPending) return 'count-pending'
   return 'count-normal'
 }
 

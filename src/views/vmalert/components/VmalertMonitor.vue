@@ -152,7 +152,7 @@
                     `grid-${grid.state}`,
                     'grid-clickable',
                     {
-                      'grid-alertmanager-match': hasAlertmanagerMatchForGrid(grid) && !isSilencedFiringGrid(grid),
+                      'grid-alertmanager-match': hasAlertmanagerMatchForGrid(grid) && grid.state === 'firing' && !isSilencedFiringGrid(grid),
                       'grid-alertmanager-silenced': isSilencedFiringGrid(grid)
                     }
                   ]"
@@ -277,7 +277,7 @@
             :class="[
               `alert-${alert.state}`,
               {
-                'alertmanager-match': alert.alertmanagerMatched,
+                'alertmanager-match': alert.alertmanagerMatched && alert.state === 'firing',
                 'alertmanager-silenced': isAlertmanagerAlertSilenced(alert)
               }
             ]"
@@ -1165,6 +1165,9 @@ watch(
   --app-grid-danger-surface: color-mix(in srgb, var(--el-color-danger) 10%, var(--app-surface-bluegray) 90%);
   --app-grid-danger-surface-2: color-mix(in srgb, var(--el-color-danger) 14%, var(--app-surface-bluegray) 86%);
 
+  --app-grid-warning-surface: color-mix(in srgb, var(--el-color-warning) 10%, var(--app-surface-bluegray) 90%);
+  --app-grid-warning-surface-2: color-mix(in srgb, var(--el-color-warning) 14%, var(--app-surface-bluegray) 86%);
+
   --app-grid-success-surface: color-mix(in srgb, var(--el-color-success) 8%, var(--app-surface-bluegray) 92%);
   --app-grid-success-surface-2: color-mix(in srgb, var(--el-color-success) 12%, var(--app-surface-bluegray) 88%);
 
@@ -1185,6 +1188,9 @@ watch(
 
   --app-grid-danger-surface: color-mix(in srgb, var(--el-color-danger) 6%, var(--app-surface-bluegray) 94%);
   --app-grid-danger-surface-2: color-mix(in srgb, var(--el-color-danger) 9%, var(--app-surface-bluegray) 91%);
+
+  --app-grid-warning-surface: color-mix(in srgb, var(--el-color-warning) 6%, var(--app-surface-bluegray) 94%);
+  --app-grid-warning-surface-2: color-mix(in srgb, var(--el-color-warning) 9%, var(--app-surface-bluegray) 91%);
 
   --app-grid-success-surface: color-mix(in srgb, var(--el-color-success) 5%, var(--app-surface-bluegray) 95%);
   --app-grid-success-surface-2: color-mix(in srgb, var(--el-color-success) 8%, var(--app-surface-bluegray) 92%);
@@ -1447,7 +1453,7 @@ watch(
 }
 
 .grid-pending .grid-header {
-  background: linear-gradient(to bottom, var(--app-grid-danger-surface-2), var(--app-grid-danger-surface));
+  background: linear-gradient(to bottom, var(--app-grid-warning-surface-2), var(--app-grid-warning-surface));
   border-bottom: 1px solid var(--el-border-color-light);
 }
 
