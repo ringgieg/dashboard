@@ -80,6 +80,11 @@ const selectedLevel = ref(getCurrentServiceConfig('defaultLogLevel', ''))
 // Get config values
 const logsPerPage = getCurrentServiceConfig('logsPerPage', 500)
 const newLogHighlightDuration = getCurrentServiceConfig('alert.newLogHighlightDuration', 3000)
+const maxLogsInMemoryRaw = getCurrentServiceConfig('vmlog.viewer.maxLogsInMemory', 5000)
+const maxLogsInMemory = (() => {
+  const n = Number(maxLogsInMemoryRaw)
+  return Number.isFinite(n) ? n : 0
+})()
 
 let unsubscribe = null
 const highlightTimeouts = new Map()
@@ -89,6 +94,22 @@ function clearHighlightTimeouts() {
     clearTimeout(timeoutId)
   }
   highlightTimeouts.clear()
+}
+
+function enforceMaxLogsInMemory() {
+  if (!maxLogsInMemory || maxLogsInMemory <= 0) return
+  if (logs.value.length <= maxLogsInMemory) return
+
+  const removed = logs.value.splice(maxLogsInMemory)
+  for (const removedLog of removed) {
+    const removedId = removedLog?.id
+    if (!removedId) continue
+    const timeoutId = highlightTimeouts.get(removedId)
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      highlightTimeouts.delete(removedId)
+    }
+  }
 }
 
 const connectionStatus = computed(() => {
@@ -147,6 +168,7 @@ async function fetchInitialLogs() {
     const result = await queryTaskLogs(currentTask.value, options)
     console.log('[LogViewer] Got logs:', result.logs.length)
     logs.value = result.logs
+    enforceMaxLogsInMemory()
     nextCursor.value = result.nextCursor
     hasMore.value = result.hasMore
   } catch (error) {
@@ -170,6 +192,7 @@ async function loadMoreLogs() {
 
     const result = await queryTaskLogs(currentTask.value, options)
     logs.value = [...logs.value, ...result.logs]
+    enforceMaxLogsInMemory()
     nextCursor.value = result.nextCursor
     hasMore.value = result.hasMore
   } catch (error) {
@@ -193,6 +216,7 @@ function startStreaming() {
     // Insert in-place to avoid allocating a new array on every update
     // (helps performance when logs stream frequently)
     logs.value.unshift(...markedLogs)
+    enforceMaxLogsInMemory()
 
     for (const newLog of markedLogs) {
       const logId = newLog.id

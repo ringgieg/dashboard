@@ -11,10 +11,10 @@ import router from './router'
 import './styles/main.css'
 
 import { startThemeScheduler } from './utils/theme'
-import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
+import { VueQueryPlugin } from '@tanstack/vue-query'
+import { queryClient } from './queryClient'
 
 const pinia = createPinia()
-const queryClient = new QueryClient()
 
 const app = createApp(App)
 

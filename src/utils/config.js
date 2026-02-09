@@ -423,17 +423,6 @@ export function getLogLevelMapping() {
 }
 
 /**
- * Get log level regex pattern for LogQL query
- * @param {string} level - Log level
- * @returns {string} Regex pattern for LogQL (e.g., 'ERROR|WARN|INFO')
- */
-export function getLogLevelRegex(level) {
-  const mapping = getLogLevelMapping()
-  const levels = mapping[level] || [level]
-  return levels.join('|')
-}
-
-/**
  * Get service type
  * @param {string} serviceId - Service ID (optional, defaults to current service)
  * @returns {string} Service type ('vmlog-multitask' or 'vmalert-multitask')
@@ -444,41 +433,6 @@ export function getServiceType(serviceId = null) {
   return service?.type || 'vmlog-multitask' // Default to vmlog-multitask
 }
 
-/**
- * Get current service type
- * @returns {string} Service type ('vmlog-multitask' or 'vmalert-multitask')
- */
-export function getCurrentServiceType() {
-  return getServiceType(getCurrentServiceId())
-}
-
-/**
- * Check if current service is VMLog type
- * @returns {boolean} True if current service is vmlog-multitask
- */
-export function isVmlogService() {
-  const t = getCurrentServiceType()
-  return t === 'vmlog-multitask' || t === 'loki-multitask'
-}
-
-/**
- * Check if current service is VMAlert type
- * @returns {boolean} True if current service is vmalert-multitask
- */
-export function isVmalertService() {
-  const t = getCurrentServiceType()
-  return t === 'vmalert-multitask' || t === 'prometheus-multitask'
-}
-
-// Backward-compatible aliases
-export function isLokiService() {
-  return isVmlogService()
-}
-
-export function isPrometheusService() {
-  return isVmalertService()
-}
-
 // ============================================================
 // VMAlert Configuration Helpers (preferred)
 // ============================================================
@@ -486,26 +440,6 @@ export function isPrometheusService() {
 export function getVmalertApiBasePath() {
   // Default points to VMAlert's unified alert API base. Override per service in public/config.js.
   return getCurrentServiceConfig('vmalert.apiBasePath', getCurrentServiceConfig('prometheus.apiBasePath', '/api/v1'))
-}
-
-export function getVmalertTaskLabel() {
-  return getCurrentServiceConfig('vmalert.taskLabel', getCurrentServiceConfig('prometheus.taskLabel', 'job'))
-}
-
-export function getVmalertFixedLabels() {
-  return getCurrentServiceConfig('vmalert.fixedLabels', getCurrentServiceConfig('prometheus.fixedLabels', {}))
-}
-
-export function getVmalertColumns() {
-  return getCurrentServiceConfig('vmalert.columns', getCurrentServiceConfig('prometheus.columns', []))
-}
-
-export function getVmalertPollingInterval() {
-  const value = getCurrentServiceConfig('polling.interval', null)
-  if (value !== null && value !== undefined) {
-    return value
-  }
-  return getCurrentServiceConfig('vmalert.polling.interval', getCurrentServiceConfig('prometheus.polling.interval', 5000))
 }
 
 export function getVmalertMaxRetries() {
@@ -522,19 +456,23 @@ export function getPrometheusApiBasePath() {
 }
 
 export function getPrometheusTaskLabel() {
-  return getVmalertTaskLabel()
+  return getCurrentServiceConfig('vmalert.taskLabel', getCurrentServiceConfig('prometheus.taskLabel', 'job'))
 }
 
 export function getPrometheusFixedLabels() {
-  return getVmalertFixedLabels()
+  return getCurrentServiceConfig('vmalert.fixedLabels', getCurrentServiceConfig('prometheus.fixedLabels', {}))
 }
 
 export function getPrometheusColumns() {
-  return getVmalertColumns()
+  return getCurrentServiceConfig('vmalert.columns', getCurrentServiceConfig('prometheus.columns', []))
 }
 
 export function getPrometheusPollingInterval() {
-  return getVmalertPollingInterval()
+  const value = getCurrentServiceConfig('polling.interval', null)
+  if (value !== null && value !== undefined) {
+    return value
+  }
+  return getCurrentServiceConfig('vmalert.polling.interval', getCurrentServiceConfig('prometheus.polling.interval', 5000))
 }
 
 export function getPrometheusMaxRetries() {

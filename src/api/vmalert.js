@@ -4,30 +4,22 @@ import {
   getVmalertMaxRetries,
   getVmalertRetryBaseDelay
 } from '../utils/config'
+import { queryClient } from '../queryClient'
+import { createRetryOptions, getHttpStatus } from '../utils/queryRetry'
 
-/**
- * Retry wrapper with fixed delay
- */
-async function retryWithBackoff(fn, maxRetries = null, baseDelay = null) {
-  const finalMaxRetries = maxRetries ?? getVmalertMaxRetries()
-  const finalBaseDelay = baseDelay ?? getVmalertRetryBaseDelay()
-
-  for (let i = 0; i < finalMaxRetries; i++) {
-    try {
-      return await fn()
-    } catch (error) {
-      const isTooManyRequests = error.response?.status === 429
-      const isServerError = error.response?.status >= 500
-
-      if ((isTooManyRequests || isServerError) && i < finalMaxRetries - 1) {
-        const delay = finalBaseDelay
-        console.log(`[VMAlert] Request failed, retrying in ${delay}ms...`)
-        await new Promise(resolve => setTimeout(resolve, delay))
-      } else {
-        throw error
-      }
-    }
-  }
+function getVmalertRetryOptions() {
+  const maxAttempts = getVmalertMaxRetries()
+  const baseDelay = getVmalertRetryBaseDelay()
+  return createRetryOptions({
+    maxAttempts,
+    baseDelay,
+    maxDelay: 30_000,
+    shouldRetry: (error) => {
+      const status = getHttpStatus(error)
+      return status === 429 || (status != null && status >= 500)
+    },
+    logPrefix: '[VMAlert] Request failed,'
+  })
 }
 
 /**
@@ -38,42 +30,40 @@ async function retryWithBackoff(fn, maxRetries = null, baseDelay = null) {
 export async function getAlerts() {
   const apiBasePath = getVmalertApiBasePath()
 
-  const requestFn = async () => {
-    const response = await axios.get(`${apiBasePath}/alerts/all`)
-    return response
-  }
-
   try {
-    const response = await retryWithBackoff(requestFn)
+    return await queryClient.fetchQuery({
+      queryKey: ['vmalert', 'alerts', 'all', apiBasePath],
+      queryFn: async () => {
+        const response = await axios.get(`${apiBasePath}/alerts/all`)
 
-    if (response.data?.status === 'success') {
-      const alerts = response.data.data?.alerts || []
+        if (response.data?.status === 'success') {
+          const alerts = response.data.data?.alerts || []
 
-      // Enrich alerts: copy top-level 'name' field to Prometheus-conventional label keys
-      // VMAlert unified endpoint returns the rule name as top-level `name`.
-      // Prometheus/Alertmanager expects it as label `alertname`.
-      alerts.forEach(alert => {
-        if (!alert || typeof alert !== 'object') return
-        if (!alert.labels || typeof alert.labels !== 'object') alert.labels = {}
+          alerts.forEach(alert => {
+            if (!alert || typeof alert !== 'object') return
+            if (!alert.labels || typeof alert.labels !== 'object') alert.labels = {}
 
-        if (alert.name) {
-          if (!alert.labels.alertname) {
-            alert.labels.alertname = alert.name
-          }
-          // Backward compatibility: some existing configs may still group by `name`
-          if (!alert.labels.name) {
-            alert.labels.name = alert.name
-          }
+            if (alert.name) {
+              if (!alert.labels.alertname) {
+                alert.labels.alertname = alert.name
+              }
+              if (!alert.labels.name) {
+                alert.labels.name = alert.name
+              }
+            }
+          })
+
+          console.log(`[VMAlert] Fetched ${alerts.length} alerts from unified endpoint`)
+          return alerts
         }
-      })
 
-      console.log(`[VMAlert] Fetched ${alerts.length} alerts from unified endpoint`)
-
-      return alerts
-    } else {
-      console.error('[VMAlert] Invalid response format:', response.data)
-      return []
-    }
+        console.error('[VMAlert] Invalid response format:', response.data)
+        return []
+      },
+      staleTime: 0,
+      gcTime: 30_000,
+      ...getVmalertRetryOptions()
+    })
   } catch (error) {
     console.error('[VMAlert] Failed to fetch alerts:', error)
     throw error
@@ -89,33 +79,34 @@ export async function getAlerts() {
 export async function getLabelValues(labelName, matchers = {}) {
   const apiBasePath = getVmalertApiBasePath()
 
-  const requestFn = async () => {
-    const params = {}
-
-    // Add label matchers if provided
-    if (Object.keys(matchers).length > 0) {
-      const matcherStrings = Object.entries(matchers).map(
-        ([key, value]) => `${key}="${value}"`
-      )
-      params['match[]'] = `{${matcherStrings.join(',')}}`
-    }
-
-    const response = await axios.get(
-      `${apiBasePath}/label/${labelName}/values`,
-      { params }
-    )
-    return response
-  }
-
   try {
-    const response = await retryWithBackoff(requestFn)
+    return await queryClient.fetchQuery({
+      queryKey: ['vmalert', 'labelValues', apiBasePath, labelName, matchers],
+      queryFn: async () => {
+        const params = {}
+        if (Object.keys(matchers).length > 0) {
+          const matcherStrings = Object.entries(matchers).map(
+            ([key, value]) => `${key}="${value}"`
+          )
+          params['match[]'] = `{${matcherStrings.join(',')}}`
+        }
 
-    if (response.data?.status === 'success') {
-      return response.data.data || []
-    } else {
-      console.error('[VMAlert] Invalid response format:', response.data)
-      return []
-    }
+        const response = await axios.get(
+          `${apiBasePath}/label/${labelName}/values`,
+          { params }
+        )
+
+        if (response.data?.status === 'success') {
+          return response.data.data || []
+        }
+
+        console.error('[VMAlert] Invalid response format:', response.data)
+        return []
+      },
+      staleTime: 0,
+      gcTime: 5 * 60_000,
+      ...getVmalertRetryOptions()
+    })
   } catch (error) {
     console.error(`[VMAlert] Failed to fetch label values for ${labelName}:`, error)
     throw error
@@ -131,39 +122,29 @@ export async function getLabelValues(labelName, matchers = {}) {
 export async function queryInstant(query, time = null) {
   const apiBasePath = getVmalertApiBasePath()
 
-  const requestFn = async () => {
-    const params = { query }
-    if (time) {
-      params.time = time
-    }
-
-    const response = await axios.get(`${apiBasePath}/query`, { params })
-    return response
-  }
-
   try {
-    const response = await retryWithBackoff(requestFn)
+    return await queryClient.fetchQuery({
+      queryKey: ['vmalert', 'queryInstant', apiBasePath, query, time],
+      queryFn: async () => {
+        const params = { query }
+        if (time) params.time = time
 
-    if (response.data?.status === 'success') {
-      return response.data.data
-    } else {
-      console.error('[VMAlert] Invalid response format:', response.data)
-      return null
-    }
+        const response = await axios.get(`${apiBasePath}/query`, { params })
+        if (response.data?.status === 'success') {
+          return response.data.data
+        }
+
+        console.error('[VMAlert] Invalid response format:', response.data)
+        return null
+      },
+      staleTime: 0,
+      gcTime: 30_000,
+      ...getVmalertRetryOptions()
+    })
   } catch (error) {
     console.error('[VMAlert] Failed to execute query:', error)
     throw error
   }
-}
-
-/**
- * Build alert matchers from fixed labels and dynamic filters
- * @param {Object} fixedLabels - Fixed labels from config
- * @param {Object} filters - Dynamic filters (e.g., { job: 'api-server' })
- * @returns {Object} Combined matchers
- */
-export function buildAlertMatchers(fixedLabels = {}, filters = {}) {
-  return { ...fixedLabels, ...filters }
 }
 
 /**
@@ -223,20 +204,6 @@ export function groupAlertsByLabel(alerts, labelName, labelSource = 'alertLabels
   })
 
   return groups
-}
-
-/**
- * Get alert state color (for UI display)
- * @param {string} state - Alert state ('firing', 'pending', 'inactive')
- * @returns {string} Color name or hex code
- */
-export function getAlertStateColor(state) {
-  const colorMap = {
-    'firing': '#f56c6c',    // Red (critical)
-    'pending': '#e6a23c',   // Yellow (warning)
-    'inactive': '#67c23a'   // Green (normal)
-  }
-  return colorMap[state] || '#909399' // Gray (unknown)
 }
 
 /**

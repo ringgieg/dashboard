@@ -1,33 +1,35 @@
 import axios from 'axios'
+import { MutationObserver } from '@tanstack/query-core'
 import {
   getAlertmanagerApiBasePath,
   getPrometheusMaxRetries,
   getPrometheusRetryBaseDelay
 } from '../utils/config'
+import { queryClient } from '../queryClient'
+import { createRetryOptions, getHttpStatus } from '../utils/queryRetry'
 
-/**
- * Retry wrapper with exponential backoff
- */
-async function retryWithBackoff(fn, maxRetries = null, baseDelay = null) {
-  const finalMaxRetries = maxRetries ?? getPrometheusMaxRetries()
-  const finalBaseDelay = baseDelay ?? getPrometheusRetryBaseDelay()
+function getAlertmanagerRetryOptions() {
+  const maxAttempts = getPrometheusMaxRetries()
+  const baseDelay = getPrometheusRetryBaseDelay()
+  return createRetryOptions({
+    maxAttempts,
+    baseDelay,
+    maxDelay: 30_000,
+    shouldRetry: (error) => {
+      const status = getHttpStatus(error)
+      return status === 429 || (status != null && status >= 500)
+    },
+    logPrefix: '[Alertmanager] Request failed,'
+  })
+}
 
-  for (let i = 0; i < finalMaxRetries; i++) {
-    try {
-      return await fn()
-    } catch (error) {
-      const isTooManyRequests = error.response?.status === 429
-      const isServerError = error.response?.status >= 500
-
-      if ((isTooManyRequests || isServerError) && i < finalMaxRetries - 1) {
-        const delay = finalBaseDelay * Math.pow(2, i)
-        console.log(`[Alertmanager] Request failed, retrying in ${delay}ms...`)
-        await new Promise(resolve => setTimeout(resolve, delay))
-      } else {
-        throw error
-      }
-    }
-  }
+async function runAlertmanagerMutation({ mutationKey, mutationFn, variables }) {
+  const observer = new MutationObserver(queryClient, {
+    mutationKey,
+    mutationFn,
+    ...getAlertmanagerRetryOptions()
+  })
+  return observer.mutate(variables)
 }
 
 /**
@@ -37,14 +39,17 @@ async function retryWithBackoff(fn, maxRetries = null, baseDelay = null) {
 export async function getAlertmanagerSilences() {
   const apiBasePath = getAlertmanagerApiBasePath()
 
-  const requestFn = async () => {
-    const response = await axios.get(`${apiBasePath}/silences`)
-    return response
-  }
-
   try {
-    const response = await retryWithBackoff(requestFn)
-    return response.data || []
+    return await queryClient.fetchQuery({
+      queryKey: ['alertmanager', 'silences', apiBasePath],
+      queryFn: async () => {
+        const response = await axios.get(`${apiBasePath}/silences`)
+        return response.data || []
+      },
+      staleTime: 0,
+      gcTime: 60_000,
+      ...getAlertmanagerRetryOptions()
+    })
   } catch (error) {
     console.error('[Alertmanager] Failed to fetch silences:', error)
     throw error
@@ -59,15 +64,19 @@ export async function getAlertmanagerSilences() {
 export async function deleteAlertmanagerSilence(silenceId) {
   const apiBasePath = getAlertmanagerApiBasePath()
 
-  const requestFn = async () => {
-    // Alertmanager v2 uses singular resource path for delete: /api/v2/silence/:id
-    const response = await axios.delete(`${apiBasePath}/silence/${silenceId}`)
-    return response
-  }
-
   try {
-    const response = await retryWithBackoff(requestFn)
-    return response.data
+    const data = await runAlertmanagerMutation({
+      mutationKey: ['alertmanager', 'silence', 'delete', apiBasePath, silenceId],
+      mutationFn: async (id) => {
+        const response = await axios.delete(`${apiBasePath}/silence/${id}`)
+        return response.data
+      },
+      variables: silenceId
+    })
+
+    await queryClient.invalidateQueries({ queryKey: ['alertmanager', 'silences', apiBasePath] })
+    await queryClient.invalidateQueries({ queryKey: ['alertmanager', 'alerts', apiBasePath] })
+    return data
   } catch (error) {
     console.error('[Alertmanager] Failed to delete silence:', error)
     throw error
@@ -81,25 +90,23 @@ export async function deleteAlertmanagerSilence(silenceId) {
 export async function getAlertmanagerAlerts() {
   const apiBasePath = getAlertmanagerApiBasePath()
 
-  const requestFn = async () => {
-    const response = await axios.get(`${apiBasePath}/alerts`)
-    return response
-  }
-
   try {
-    const response = await retryWithBackoff(requestFn)
-    const data = response.data
+    return await queryClient.fetchQuery({
+      queryKey: ['alertmanager', 'alerts', apiBasePath],
+      queryFn: async () => {
+        const response = await axios.get(`${apiBasePath}/alerts`)
+        const data = response.data
 
-    if (Array.isArray(data)) {
-      return data
-    }
+        if (Array.isArray(data)) return data
+        if (Array.isArray(data?.data)) return data.data
 
-    if (Array.isArray(data?.data)) {
-      return data.data
-    }
-
-    console.error('[Alertmanager] Invalid response format:', data)
-    return []
+        console.error('[Alertmanager] Invalid response format:', data)
+        return []
+      },
+      staleTime: 0,
+      gcTime: 30_000,
+      ...getAlertmanagerRetryOptions()
+    })
   } catch (error) {
     console.error('[Alertmanager] Failed to fetch alerts:', error)
     throw error
@@ -114,14 +121,18 @@ export async function getAlertmanagerAlerts() {
 export async function createAlertmanagerSilence(payload) {
   const apiBasePath = getAlertmanagerApiBasePath()
 
-  const requestFn = async () => {
-    const response = await axios.post(`${apiBasePath}/silences`, payload)
-    return response
-  }
-
   try {
-    const response = await retryWithBackoff(requestFn)
-    return response.data
+    const data = await runAlertmanagerMutation({
+      mutationKey: ['alertmanager', 'silences', 'create', apiBasePath],
+      mutationFn: async (vars) => {
+        const response = await axios.post(`${apiBasePath}/silences`, vars)
+        return response.data
+      },
+      variables: payload
+    })
+
+    await queryClient.invalidateQueries({ queryKey: ['alertmanager', 'silences', apiBasePath] })
+    return data
   } catch (error) {
     console.error('[Alertmanager] Failed to create silence:', error)
     throw error

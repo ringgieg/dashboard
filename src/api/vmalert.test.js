@@ -1,12 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { buildAlertMatchers, filterAlerts, groupAlertsByLabel } from './vmalert'
+import { filterAlerts, groupAlertsByLabel } from './vmalert'
 
 describe('vmalert api helpers', () => {
-  it('buildAlertMatchers merges fixed labels and filters', () => {
-    expect(buildAlertMatchers({ job: 'api', env: 'prod' }, { instance: 'node-1' }))
-      .toEqual({ job: 'api', env: 'prod', instance: 'node-1' })
-  })
-
   it('filterAlerts returns all alerts when matchers empty', () => {
     const alerts = [
       { labels: { job: 'a' } },

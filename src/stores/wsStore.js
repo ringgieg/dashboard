@@ -43,6 +43,16 @@ export const useWsStore = defineStore('ws', () => {
   // Track if this is the first connection (to avoid triggering alerts on initial load)
   let isInitializing = true
 
+  // Initialization delay timer (avoid leaking timers across disconnect/reconnect)
+  let initializationTimer = null
+
+  function clearInitializationTimer() {
+    if (initializationTimer) {
+      clearTimeout(initializationTimer)
+      initializationTimer = null
+    }
+  }
+
   /**
    * Start the WebSocket connection for the configured service
    */
@@ -55,6 +65,7 @@ export const useWsStore = defineStore('ws', () => {
 
     // Set initialization flag
     isInitializing = true
+    clearInitializationTimer()
 
     // Query for all logs (no task_name filter, uses fixedLabels from config)
     const query = buildTaskQuery(null)
@@ -105,7 +116,10 @@ export const useWsStore = defineStore('ws', () => {
         // Delay marking initialization as complete to allow initial historical logs to load
         // This prevents false alerts from historical logs on page load
         const delay = getCurrentServiceConfig('vmlog.tail.initializationDelay', 2000)
-        setTimeout(() => {
+        clearInitializationTimer()
+        initializationTimer = setTimeout(() => {
+          // If we disconnected (or controller was cleared), do nothing.
+          if (!wsController) return
           isInitializing = false
           console.log('Initialization complete, now monitoring for new errors')
         }, delay)
@@ -135,6 +149,7 @@ export const useWsStore = defineStore('ws', () => {
    * Disconnect the WebSocket
    */
   function disconnect() {
+    clearInitializationTimer()
     if (wsController) {
       wsController.close()
       wsController = null

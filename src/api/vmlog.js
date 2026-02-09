@@ -1,5 +1,7 @@
 import axios from 'axios'
 import { getConfig, getCurrentServiceConfig, getLogLevelOrder } from '../utils/config'
+import { queryClient } from '../queryClient'
+import { createRetryOptions, getHttpStatus } from '../utils/queryRetry'
 
 function getLogSqlApiBase() {
   const apiBasePath = getCurrentServiceConfig('vmlog.apiBasePath') ||
@@ -22,40 +24,25 @@ function buildLogSqlUrl(endpoint) {
   return `${basePath}/${normalizedEndpoint}`
 }
 
-// Request queue to limit concurrent requests (Map by query key)
-const pendingRequests = new Map()
-
 // Log ID counter for unique IDs (prevents Math.random() collisions)
 let logIdCounter = 0
 
-/**
- * Retry wrapper with exponential backoff
- * Reads retry settings from current service config
- */
-async function retryWithBackoff(fn, maxRetries = null, baseDelay = null) {
-  // Get retry settings from config or use defaults
-  const configMaxRetries = getCurrentServiceConfig('vmlog.api.maxRetries', 3)
-  const configBaseDelay = getCurrentServiceConfig('vmlog.api.retryBaseDelay', 1000)
+function getVmLogRetryOptions() {
+  const maxAttempts = getCurrentServiceConfig('vmlog.api.maxRetries', 3)
+  const baseDelay = getCurrentServiceConfig('vmlog.api.retryBaseDelay', 1000)
 
-  const finalMaxRetries = maxRetries ?? configMaxRetries
-  const finalBaseDelay = baseDelay ?? configBaseDelay
-
-  for (let i = 0; i < finalMaxRetries; i++) {
-    try {
-      return await fn()
-    } catch (error) {
-      const isTooManyRequests = error.response?.status === 429 ||
-        error.message?.includes('too many outstanding requests')
-
-      if (isTooManyRequests && i < finalMaxRetries - 1) {
-        const delay = finalBaseDelay * Math.pow(2, i)
-        console.log(`[VMLog] Too many requests, retrying in ${delay}ms...`)
-        await new Promise(resolve => setTimeout(resolve, delay))
-      } else {
-        throw error
-      }
-    }
-  }
+  return createRetryOptions({
+    maxAttempts,
+    baseDelay,
+    maxDelay: 30_000,
+    shouldRetry: (error) => {
+      const status = getHttpStatus(error)
+      const msg = String(error?.message || '').toLowerCase()
+      const tooManyOutstanding = msg.includes('too many outstanding requests')
+      return status === 429 || tooManyOutstanding || (status != null && status >= 500)
+    },
+    logPrefix: '[VMLog] Too many requests,'
+  })
 }
 
 /**
@@ -73,48 +60,37 @@ export async function queryLogsWithCursor(query, options = {}) {
   const timeRangeDays = getCurrentServiceConfig('query.defaultTimeRangeDays') ||
                         getConfig('query.defaultTimeRangeDays', 7)
 
-  // Create unique key for this query to support concurrent requests
-  const requestKey = `${query}-${safeOffset}-${limit}`
+  try {
+    return await queryClient.fetchQuery({
+      queryKey: ['vmlog', 'queryLogsWithCursor', query, safeOffset, limit, timeRangeDays],
+      queryFn: async () => {
+        const body = new URLSearchParams({
+          query,
+          limit: String(limit),
+          offset: String(safeOffset),
+          start: `${timeRangeDays}d`,
+          end: 'now'
+        })
 
-  // True de-duplication: if the same request is already in-flight,
-  // return the same Promise instead of waiting and issuing a new request.
-  if (pendingRequests.has(requestKey)) {
-    return pendingRequests.get(requestKey)
+        const response = await axios.post(buildLogSqlUrl('query'), body, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          responseType: 'text'
+        })
+
+        const logs = parseLogSqlResponse(response.data)
+        const hasMore = logs.length >= limit
+        const nextCursor = hasMore ? String(safeOffset + logs.length) : null
+        return { logs, nextCursor, hasMore }
+      },
+      staleTime: 0,
+      // Cursor pages should be GC'ed quickly (prevents cache growth under long scrolling)
+      gcTime: 30_000,
+      ...getVmLogRetryOptions()
+    })
+  } catch (error) {
+    console.error('Error querying logs with cursor:', error)
+    throw error
   }
-
-  const currentRequest = (async () => {
-    const requestFn = async () => {
-      const body = new URLSearchParams({
-        query,
-        limit: String(limit),
-        offset: String(safeOffset),
-        start: `${timeRangeDays}d`,
-        end: 'now'
-      })
-
-      return axios.post(buildLogSqlUrl('query'), body, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        responseType: 'text'
-      })
-    }
-
-    try {
-      const response = await retryWithBackoff(requestFn)
-      const logs = parseLogSqlResponse(response.data)
-      const hasMore = logs.length >= limit
-      const nextCursor = hasMore ? String(safeOffset + logs.length) : null
-      return { logs, nextCursor, hasMore }
-    } catch (error) {
-      console.error('Error querying logs with cursor:', error)
-      throw error
-    } finally {
-      // Always clean up pending request to prevent memory leak
-      pendingRequests.delete(requestKey)
-    }
-  })()
-
-  pendingRequests.set(requestKey, currentRequest)
-  return currentRequest
 }
 
 /**
@@ -336,12 +312,20 @@ export async function getLabelValues(labelName) {
       end: 'now'
     })
 
-    const response = await axios.post(buildLogSqlUrl('stream_field_values'), body, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    })
+    return await queryClient.fetchQuery({
+      queryKey: ['vmlog', 'labelValues', labelName, timeRangeDays, query],
+      queryFn: async () => {
+        const response = await axios.post(buildLogSqlUrl('stream_field_values'), body, {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        })
 
-    const values = response.data?.values || []
-    return values.map(v => v.value).filter(v => typeof v === 'string')
+        const values = response.data?.values || []
+        return values.map(v => v.value).filter(v => typeof v === 'string')
+      },
+      staleTime: 0,
+      gcTime: 5 * 60_000,
+      ...getVmLogRetryOptions()
+    })
   } catch (error) {
     console.error(`Error getting label values for ${labelName}:`, error)
     throw error

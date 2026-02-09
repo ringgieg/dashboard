@@ -4,80 +4,88 @@
     class="virtual-log-list"
     @scroll="handleScroll"
   >
-    <!-- Top spacer -->
-    <div :style="{ height: topSpacerHeight + 'px' }"></div>
-
-    <!-- Visible items -->
     <div
-      v-for="item in visibleItems"
-      :key="item.log.id"
-      :ref="el => setItemRef(el, item.log.id)"
-      class="log-entry"
-      :class="[
-        'level-' + (item.log.level || 'info').toLowerCase(),
-        { 'is-expanded': isExpanded(item.log.id) }
-      ]"
-      :data-index="item.index"
-      @click="toggleExpand(item.log.id)"
+      class="virtual-inner"
+      :style="{
+        height: totalSize + 'px',
+        position: 'relative'
+      }"
     >
-      <div class="log-header">
-        <div class="log-meta">
-          <span class="log-time">{{ formatTime(item.log.timestamp) }}</span>
-          <span class="log-level" :class="'level-' + (item.log.level || 'info').toLowerCase()">
-            {{ item.log.level || 'INFO' }}
-          </span>
-          <span v-if="item.log.isNew" class="new-tag">NEW</span>
-        </div>
-        <span class="expand-icon">
-          <el-icon v-if="isExpanded(item.log.id)"><ArrowDown /></el-icon>
-          <el-icon v-else><ArrowRight /></el-icon>
-        </span>
-      </div>
       <div
-        class="log-content"
-        v-html="linkifyText(getTruncatedContent(item.log))"
-        @click="handleLogContentClick"
-      ></div>
-      <div v-if="shouldShowTruncateHint(item.log)" class="truncate-hint">
-        ...（点击展开查看完整日志）
-      </div>
-
-      <!-- Expanded details section -->
-      <div v-if="isExpanded(item.log.id)" class="log-details">
-        <!-- Raw log with copy button -->
-        <div class="detail-section">
-          <div class="section-header">
-            <span class="section-title">原始日志</span>
-            <el-button size="small" @click.stop="copyRawLog(item.log.line)">
-              <el-icon><DocumentCopy /></el-icon>
-              复制
-            </el-button>
+        v-for="item in virtualLogItems"
+        :key="item.virtualRow.key"
+        :ref="el => setRowRef(el)"
+        class="log-entry"
+        :class="[
+          'level-' + (item.log.level || 'info').toLowerCase(),
+          { 'is-expanded': isExpanded(item.log.id) }
+        ]"
+        :data-index="item.virtualRow.index"
+        :style="{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          transform: `translateY(${item.virtualRow.start}px)`
+        }"
+        @click="toggleExpand(item.log.id)"
+      >
+        <div class="log-header">
+          <div class="log-meta">
+            <span class="log-time">{{ formatTime(item.log.timestamp) }}</span>
+            <span class="log-level" :class="'level-' + (item.log.level || 'info').toLowerCase()">
+              {{ item.log.level || 'INFO' }}
+            </span>
+            <span v-if="item.log.isNew" class="new-tag">NEW</span>
           </div>
-          <div class="raw-log-content" @click.stop>{{ item.log.line }}</div>
+          <span class="expand-icon">
+            <el-icon v-if="isExpanded(item.log.id)"><ArrowDown /></el-icon>
+            <el-icon v-else><ArrowRight /></el-icon>
+          </span>
+        </div>
+        <div
+          class="log-content"
+          v-html="linkifyText(getTruncatedContent(item.log))"
+          @click="handleLogContentClick"
+        ></div>
+        <div v-if="shouldShowTruncateHint(item.log)" class="truncate-hint">
+          ...（点击展开查看完整日志）
         </div>
 
-        <!-- Labels -->
-        <div class="detail-section">
-          <div class="section-header">
-            <span class="section-title">标签</span>
+        <!-- Expanded details section -->
+        <div v-if="isExpanded(item.log.id)" class="log-details">
+          <!-- Raw log with copy button -->
+          <div class="detail-section">
+            <div class="section-header">
+              <span class="section-title">原始日志</span>
+              <el-button size="small" @click.stop="copyRawLog(item.log.line)">
+                <el-icon><DocumentCopy /></el-icon>
+                复制
+              </el-button>
+            </div>
+            <div class="raw-log-content" @click.stop>{{ item.log.line }}</div>
           </div>
-          <div class="labels-grid">
-            <div
-              v-for="(value, key) in item.log.labels"
-              :key="key"
-              class="label-item"
-              @click.stop="copyLabel(key, value)"
-            >
-              <span class="label-key">{{ key }}</span>
-              <span class="label-value">{{ value }}</span>
+
+          <!-- Labels -->
+          <div class="detail-section">
+            <div class="section-header">
+              <span class="section-title">标签</span>
+            </div>
+            <div class="labels-grid">
+              <div
+                v-for="(value, key) in item.log.labels"
+                :key="key"
+                class="label-item"
+                @click.stop="copyLabel(key, value)"
+              >
+                <span class="label-key">{{ key }}</span>
+                <span class="label-value">{{ value }}</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Bottom spacer -->
-    <div :style="{ height: bottomSpacerHeight + 'px' }"></div>
 
     <!-- Loading indicator -->
     <div v-if="loading" class="loading-more">
@@ -93,12 +101,13 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, ArrowRight, DocumentCopy, Loading } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import LinkifyIt from 'linkify-it'
 import { getConfig } from '../../../utils/config'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 
 const props = defineProps({
   logs: { type: Array, required: true },
@@ -111,100 +120,137 @@ const props = defineProps({
 const emit = defineEmits(['load-more'])
 
 const containerRef = ref(null)
-const itemHeights = ref({})
-const scrollTop = ref(0)
-const containerHeight = ref(0)
 const expandedLogs = ref(new Set())
 
 const linkify = new LinkifyIt()
 
-const BUFFER = props.bufferSize
+const rowVirtualizer = useVirtualizer(() => ({
+  count: props.logs.length,
+  getScrollElement: () => containerRef.value,
+  estimateSize: () => props.estimatedItemHeight,
+  overscan: props.bufferSize,
+  getItemKey: (index) => props.logs[index]?.id ?? index
+}))
 
-const visibleRange = computed(() => {
-  if (!containerRef.value || props.logs.length === 0) {
-    return { start: 0, end: 0 }
-  }
+const totalSize = computed(() => rowVirtualizer.value.getTotalSize())
 
-  const getHeightAt = (i) => {
-    const id = props.logs[i]?.id
-    return (id && itemHeights.value[id]) || props.estimatedItemHeight
-  }
-
-  let accumulatedHeight = 0
-  let startIndex = 0
-  let endIndex = props.logs.length
-
-  for (let i = 0; i < props.logs.length; i++) {
-    const itemHeight = getHeightAt(i)
-    if (accumulatedHeight + itemHeight >= scrollTop.value) {
-      startIndex = Math.max(0, i - BUFFER)
-      break
-    }
-    accumulatedHeight += itemHeight
-  }
-
-  accumulatedHeight = 0
-  for (let i = 0; i < props.logs.length; i++) {
-    accumulatedHeight += getHeightAt(i)
-    if (accumulatedHeight > scrollTop.value + containerHeight.value) {
-      endIndex = Math.min(props.logs.length, i + BUFFER)
-      break
-    }
-  }
-
-  return { start: startIndex, end: endIndex }
+const virtualLogItems = computed(() => {
+  return rowVirtualizer.value
+    .getVirtualItems()
+    .map(virtualRow => ({ virtualRow, log: props.logs[virtualRow.index] }))
+    .filter(item => item.log)
 })
 
-const visibleItems = computed(() => {
-  const { start, end } = visibleRange.value
-  return props.logs.slice(start, end).map((log, i) => ({
-    log,
-    index: start + i
-  }))
-})
-
-const topSpacerHeight = computed(() => {
-  let height = 0
-  const getHeightAt = (i) => {
-    const id = props.logs[i]?.id
-    return (id && itemHeights.value[id]) || props.estimatedItemHeight
-  }
-  for (let i = 0; i < visibleRange.value.start; i++) {
-    height += getHeightAt(i)
-  }
-  return height
-})
-
-const bottomSpacerHeight = computed(() => {
-  let height = 0
-  const getHeightAt = (i) => {
-    const id = props.logs[i]?.id
-    return (id && itemHeights.value[id]) || props.estimatedItemHeight
-  }
-  for (let i = visibleRange.value.end; i < props.logs.length; i++) {
-    height += getHeightAt(i)
-  }
-  return height
-})
-
-function setItemRef(el, id) {
-  if (el) {
-    nextTick(() => {
-      if (el && el.offsetHeight) {
-        if (id) itemHeights.value[id] = el.offsetHeight
-      }
-    })
+function setRowRef(el) {
+  if (!el) return
+  const v = rowVirtualizer.value
+  if (v && typeof v.measureElement === 'function') {
+    v.measureElement(el)
   }
 }
 
+function raf() {
+  return new Promise(resolve => requestAnimationFrame(resolve))
+}
+
+function findIndexNearStartById(logs, id, maxScan) {
+  const limit = Math.min(logs.length, maxScan)
+  for (let i = 0; i < limit; i++) {
+    if (logs[i]?.id === id) return i
+  }
+  return -1
+}
+
+function pruneExpandedLogs(newLogs, oldLogs) {
+  if (expandedLogs.value.size === 0) return
+
+  if (!Array.isArray(newLogs) || newLogs.length === 0) {
+    expandedLogs.value.clear()
+    return
+  }
+
+  const maxTracked = getConfig('virtualScroll.maxExpandedLogsTracked', 1000)
+
+  // If we can determine which old logs were trimmed, drop their expanded flags.
+  if (Array.isArray(oldLogs) && oldLogs.length > 0) {
+    const oldFirstId = oldLogs[0]?.id
+    if (oldFirstId) {
+      const maxScan = getConfig('virtualScroll.prependCompensationScanLimit', 2000)
+      const newIndexOfOldFirst = findIndexNearStartById(newLogs, oldFirstId, maxScan)
+
+      if (newIndexOfOldFirst === -1) {
+        // Likely a full replace (task switch / refetch); keep it simple.
+        expandedLogs.value.clear()
+      } else {
+        const keptOldCount = Math.max(0, newLogs.length - newIndexOfOldFirst)
+        for (let i = keptOldCount; i < oldLogs.length; i++) {
+          const id = oldLogs[i]?.id
+          if (id != null) expandedLogs.value.delete(id)
+        }
+      }
+    }
+  }
+
+  // Hard cap to avoid slow unbounded growth even if trimming detection misses a case.
+  if (expandedLogs.value.size > maxTracked) {
+    const excess = expandedLogs.value.size - maxTracked
+    let removed = 0
+    for (const id of expandedLogs.value) {
+      expandedLogs.value.delete(id)
+      removed++
+      if (removed >= excess) break
+    }
+  }
+}
+
+watch(
+  () => props.logs,
+  async (newLogs, oldLogs) => {
+    pruneExpandedLogs(newLogs, oldLogs)
+
+    const el = containerRef.value
+    if (!el) return
+
+    // If user is pinned to the top, do not compensate.
+    // (they likely want to see the newest logs appear at the top)
+    if (el.scrollTop <= 1) return
+
+    if (!Array.isArray(newLogs) || !Array.isArray(oldLogs)) return
+    if (newLogs.length === 0 || oldLogs.length === 0) return
+
+    const oldFirstId = oldLogs[0]?.id
+    if (!oldFirstId) return
+
+    // Only handle the common case: new logs were prepended (unshift)
+    if (newLogs[0]?.id === oldFirstId) return
+
+    const maxScan = getConfig('virtualScroll.prependCompensationScanLimit', 2000)
+    const newIndexOfOldFirst = findIndexNearStartById(newLogs, oldFirstId, maxScan)
+    if (newIndexOfOldFirst <= 0) return
+
+    const prevScrollTop = el.scrollTop
+    const prevScrollHeight = el.scrollHeight
+
+    // Wait for DOM + virtualizer totalSize to reflect the new list.
+    await nextTick()
+    await raf()
+
+    const newScrollHeight = el.scrollHeight
+    const delta = newScrollHeight - prevScrollHeight
+    if (delta > 0) {
+      el.scrollTop = prevScrollTop + delta
+    }
+  },
+  { flush: 'pre' }
+)
+
 function handleScroll(event) {
   const target = event.target
-  scrollTop.value = target.scrollTop
 
   const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight
   // Use dynamic threshold based on container height
   const loadMoreThreshold = getConfig('virtualScroll.loadMoreThreshold', 0.2)
-  const threshold = containerHeight.value * loadMoreThreshold
+  const threshold = target.clientHeight * loadMoreThreshold
   if (scrollBottom < threshold && !props.loading && props.hasMore) {
     emit('load-more')
   }
@@ -301,9 +347,10 @@ function toggleExpand(logId) {
   } else {
     expandedLogs.value.add(logId)
   }
-  // Trigger re-measurement of item heights
+  // Ensure the virtualizer re-measures after DOM updates
   nextTick(() => {
-    updateContainerHeight()
+    const v = rowVirtualizer.value
+    if (v && typeof v.measure === 'function') v.measure()
   })
 }
 
@@ -336,35 +383,6 @@ async function copyRawLog(text) {
   }
 }
 
-function updateContainerHeight() {
-  if (containerRef.value) {
-    containerHeight.value = containerRef.value.clientHeight
-  }
-}
-
-watch(() => props.logs.length, () => {
-  nextTick(() => {
-    updateContainerHeight()
-  })
-})
-
-let resizeObserver = null
-
-onMounted(() => {
-  updateContainerHeight()
-  resizeObserver = new ResizeObserver(() => {
-    updateContainerHeight()
-  })
-  if (containerRef.value) {
-    resizeObserver.observe(containerRef.value)
-  }
-})
-
-onUnmounted(() => {
-  if (resizeObserver) {
-    resizeObserver.disconnect()
-  }
-})
 </script>
 
 <style scoped>
