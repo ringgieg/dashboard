@@ -151,19 +151,7 @@ function setRowRef(el) {
   }
 }
 
-function raf() {
-  return new Promise(resolve => requestAnimationFrame(resolve))
-}
-
-function findIndexNearStartById(logs, id, maxScan) {
-  const limit = Math.min(logs.length, maxScan)
-  for (let i = 0; i < limit; i++) {
-    if (logs[i]?.id === id) return i
-  }
-  return -1
-}
-
-function pruneExpandedLogs(newLogs, oldLogs) {
+function pruneExpandedLogs(newLogs) {
   if (expandedLogs.value.size === 0) return
 
   if (!Array.isArray(newLogs) || newLogs.length === 0) {
@@ -173,24 +161,16 @@ function pruneExpandedLogs(newLogs, oldLogs) {
 
   const maxTracked = getConfig('virtualScroll.maxExpandedLogsTracked', 1000)
 
-  // If we can determine which old logs were trimmed, drop their expanded flags.
-  if (Array.isArray(oldLogs) && oldLogs.length > 0) {
-    const oldFirstId = oldLogs[0]?.id
-    if (oldFirstId) {
-      const maxScan = getConfig('virtualScroll.prependCompensationScanLimit', 2000)
-      const newIndexOfOldFirst = findIndexNearStartById(newLogs, oldFirstId, maxScan)
-
-      if (newIndexOfOldFirst === -1) {
-        // Likely a full replace (task switch / refetch); keep it simple.
-        expandedLogs.value.clear()
-      } else {
-        const keptOldCount = Math.max(0, newLogs.length - newIndexOfOldFirst)
-        for (let i = keptOldCount; i < oldLogs.length; i++) {
-          const id = oldLogs[i]?.id
-          if (id != null) expandedLogs.value.delete(id)
-        }
-      }
-    }
+  // Drop expanded flags for logs that are no longer present.
+  // Keep the scan bounded so large lists don't cause slowdowns.
+  const scanLimit = Math.max(maxTracked * 2, 2000)
+  const present = new Set()
+  for (let i = 0; i < newLogs.length && i < scanLimit; i++) {
+    const id = newLogs[i]?.id
+    if (id != null) present.add(id)
+  }
+  for (const id of expandedLogs.value) {
+    if (!present.has(id)) expandedLogs.value.delete(id)
   }
 
   // Hard cap to avoid slow unbounded growth even if trimming detection misses a case.
@@ -208,40 +188,7 @@ function pruneExpandedLogs(newLogs, oldLogs) {
 watch(
   () => props.logs,
   async (newLogs, oldLogs) => {
-    pruneExpandedLogs(newLogs, oldLogs)
-
-    const el = containerRef.value
-    if (!el) return
-
-    // If user is pinned to the top, do not compensate.
-    // (they likely want to see the newest logs appear at the top)
-    if (el.scrollTop <= 1) return
-
-    if (!Array.isArray(newLogs) || !Array.isArray(oldLogs)) return
-    if (newLogs.length === 0 || oldLogs.length === 0) return
-
-    const oldFirstId = oldLogs[0]?.id
-    if (!oldFirstId) return
-
-    // Only handle the common case: new logs were prepended (unshift)
-    if (newLogs[0]?.id === oldFirstId) return
-
-    const maxScan = getConfig('virtualScroll.prependCompensationScanLimit', 2000)
-    const newIndexOfOldFirst = findIndexNearStartById(newLogs, oldFirstId, maxScan)
-    if (newIndexOfOldFirst <= 0) return
-
-    const prevScrollTop = el.scrollTop
-    const prevScrollHeight = el.scrollHeight
-
-    // Wait for DOM + virtualizer totalSize to reflect the new list.
-    await nextTick()
-    await raf()
-
-    const newScrollHeight = el.scrollHeight
-    const delta = newScrollHeight - prevScrollHeight
-    if (delta > 0) {
-      el.scrollTop = prevScrollTop + delta
-    }
+    pruneExpandedLogs(newLogs)
   },
   { flush: 'pre' }
 )
