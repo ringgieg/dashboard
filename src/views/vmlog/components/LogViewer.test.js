@@ -271,4 +271,34 @@ describe('LogViewer.vue', () => {
     // Streaming should resume (a new subscribe)
     expect(subscribeSpy).toHaveBeenCalledTimes(2)
   })
+
+  it('should disable scroll-to-top when at top and enable when scrolled', async () => {
+    vmlog.queryTaskLogs.mockResolvedValue({
+      logs: [{ id: '1', line: 'Log 1', level: 'INFO', timestamp: 1000 }],
+      nextCursor: null,
+      hasMore: false
+    })
+
+    const wrapper = await createWrapper('test-task')
+    await flushPromises()
+
+    const getTopBtn = () => wrapper.findAll('button').find(b => b.text().includes('回到顶部'))
+
+    // Default at top
+    expect(wrapper.vm.isAtTop).toBe(true)
+    expect(getTopBtn()?.attributes('disabled')).toBeDefined()
+
+    // Simulate scroll away from top
+    wrapper.findComponent({ name: 'VirtualLogList' }).vm.$emit('scroll-state', { atTop: false })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.isAtTop).toBe(false)
+    expect(getTopBtn()?.attributes('disabled')).toBeUndefined()
+
+    // When clicked, VirtualLogList.scrollToTop() will emit atTop=true, but in tests
+    // we just validate we can toggle back by emitting.
+    wrapper.findComponent({ name: 'VirtualLogList' }).vm.$emit('scroll-state', { atTop: true })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.isAtTop).toBe(true)
+    expect(getTopBtn()?.attributes('disabled')).toBeDefined()
+  })
 })
