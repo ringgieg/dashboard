@@ -26,17 +26,27 @@
         <el-button
           size="small"
           :disabled="initialLoading"
+          :type="isPaused ? 'danger' : ''"
           @click="handleStopOrRefresh"
         >
-          {{ isPaused ? '刷新' : '停止' }}
+          <span class="btn-content">
+            <el-icon>
+              <component :is="isPaused ? VideoPlay : Lock" />
+            </el-icon>
+            {{ isPaused ? '恢复传输' : '锁定日志' }}
+          </span>
         </el-button>
 
         <el-button
           size="small"
-          :disabled="logs.length === 0"
+          :type="!isAtTop ? 'primary' : ''"
+          :disabled="logs.length === 0 || isAtTop"
           @click="scrollToTop"
         >
-          顶部
+          <span class="btn-content">
+            <el-icon class="rotate-180"><Download /></el-icon>
+            回到顶部
+          </span>
         </el-button>
       </div>
     </div>
@@ -56,6 +66,7 @@
           :loading="loading"
           :has-more="hasMore"
           @load-more="loadMoreLogs"
+          @scroll-state="handleScrollState"
         />
 
         <div v-else class="empty-state">
@@ -74,7 +85,7 @@
 <script setup>
 import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Loading } from '@element-plus/icons-vue'
+import { Loading, Lock, VideoPlay, Download } from '@element-plus/icons-vue'
 import { queryTaskLogs, filterLogsByLevel } from '../../../api/vmlog'
 import { useWsStore } from '../../../stores/wsStore'
 import { useTaskStore } from '../../../stores/taskStore'
@@ -95,6 +106,7 @@ const nextCursor = ref(null)
 const selectedLevel = ref(getCurrentServiceConfig('defaultLogLevel', ''))
 const virtualLogListRef = ref(null)
 const isPaused = ref(false)
+const isAtTop = ref(true)
 
 // Get config values
 const logsPerPage = getCurrentServiceConfig('logsPerPage', 500)
@@ -111,6 +123,10 @@ const seenLogKeys = new Set()
 
 function scrollToTop() {
   virtualLogListRef.value?.scrollToTop?.()
+}
+
+function handleScrollState(state) {
+  isAtTop.value = !!state?.atTop
 }
 
 function clearHighlightTimeouts() {
@@ -149,11 +165,13 @@ function enforceMaxLogsInMemory() {
 }
 
 const connectionStatus = computed(() => {
+  if (isPaused.value) return 'paused'
   if (wsStore.isConnected) return 'connected'
   return 'disconnected'
 })
 
 const connectionStatusText = computed(() => {
+  if (isPaused.value) return '已暂停'
   if (wsStore.isConnected) return '已连接'
   return '连接断开'
 })
@@ -377,6 +395,11 @@ onUnmounted(() => {
   background: var(--el-color-success-light-8);
 }
 
+.connection-status.paused {
+  color: var(--el-color-warning);
+  background: var(--el-color-warning-light-8);
+}
+
 .connection-status.disconnected {
   color: var(--el-color-danger);
   background: var(--el-color-danger-light-8);
@@ -385,7 +408,21 @@ onUnmounted(() => {
 .header-filters {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
+}
+
+.header-filters :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
+.btn-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rotate-180 {
+  transform: rotate(180deg);
 }
 
 .log-viewer-content {

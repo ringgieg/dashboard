@@ -36,7 +36,7 @@ vi.mock('./VirtualLogList.vue', () => ({
     name: 'VirtualLogList',
     template: '<div class="virtual-log-list-mock">Logs: {{ logs.length }}</div>',
     props: ['logs', 'loading', 'hasMore'],
-    emits: ['load-more']
+    emits: ['load-more', 'scroll-state']
   }
 }))
 
@@ -70,7 +70,7 @@ describe('LogViewer.vue', () => {
         stubs: {
           ElButton: {
             template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
-            props: ['size', 'disabled'],
+            props: ['size', 'disabled', 'type'],
             emits: ['click']
           },
           ElSelect: {
@@ -251,7 +251,7 @@ describe('LogViewer.vue', () => {
     expect(subscribeSpy).toHaveBeenCalledTimes(1)
 
     // Click stop
-    const stopBtn = wrapper.findAll('button').find(b => b.text() === '停止')
+    const stopBtn = wrapper.findAll('button').find(b => b.text().includes('锁定日志'))
     expect(stopBtn).toBeTruthy()
     await stopBtn.trigger('click')
 
@@ -259,7 +259,7 @@ describe('LogViewer.vue', () => {
     expect(setViewingSpy).toHaveBeenLastCalledWith(null)
 
     // Button switches to refresh
-    const refreshBtn = wrapper.findAll('button').find(b => b.text() === '刷新')
+    const refreshBtn = wrapper.findAll('button').find(b => b.text().includes('恢复传输'))
     expect(refreshBtn).toBeTruthy()
 
     // Click refresh: should query again

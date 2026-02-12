@@ -117,7 +117,7 @@ const props = defineProps({
   bufferSize: { type: Number, default: 10 }
 })
 
-const emit = defineEmits(['load-more'])
+const emit = defineEmits(['load-more', 'scroll-state'])
 
 const containerRef = ref(null)
 const expandedLogs = ref(new Set())
@@ -147,6 +147,7 @@ function scrollToTop() {
   const el = containerRef.value
   if (!el) return
   el.scrollTop = 0
+  emitScrollState(el)
 }
 
 defineExpose({
@@ -206,6 +207,8 @@ watch(
 function handleScroll(event) {
   const target = event.target
 
+  emitScrollState(target)
+
   const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight
   // Use dynamic threshold based on container height
   const loadMoreThreshold = getConfig('virtualScroll.loadMoreThreshold', 0.2)
@@ -213,6 +216,12 @@ function handleScroll(event) {
   if (scrollBottom < threshold && !props.loading && props.hasMore) {
     emit('load-more')
   }
+}
+
+function emitScrollState(target) {
+  if (!target) return
+  const atTop = target.scrollTop <= 0
+  emit('scroll-state', { atTop })
 }
 
 function formatTime(timestamp) {
