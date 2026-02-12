@@ -45,9 +45,7 @@
         </div>
         <div
           class="log-content"
-          v-html="linkifyText(getTruncatedContent(item.log))"
-          @click="handleLogContentClick"
-        ></div>
+        >{{ getTruncatedContent(item.log) }}</div>
         <div v-if="shouldShowTruncateHint(item.log)" class="truncate-hint">
           ...（点击展开查看完整日志）
         </div>
@@ -63,7 +61,7 @@
                 复制
               </el-button>
             </div>
-            <div class="raw-log-content" @click.stop>{{ item.log.line }}</div>
+            <div class="raw-log-content" v-html="linkifyText(item.log.line)" @click.stop></div>
           </div>
 
           <!-- Labels -->
@@ -361,13 +359,6 @@ function linkifyText(text) {
   return result
 }
 
-function handleLogContentClick(event) {
-  const target = event.target
-  if (target && target.closest && target.closest('a')) {
-    event.stopPropagation()
-  }
-}
-
 function getTruncatedContent(log) {
   // Always show truncated content (first 10 lines only)
   // Full content is shown in the expanded "原始日志" section
@@ -587,6 +578,16 @@ async function copyRawLog(text) {
 }
 
 .log-content :deep(a.log-link:hover) {
+  color: var(--el-color-primary-dark-2);
+}
+
+.raw-log-content :deep(a.log-link) {
+  color: var(--el-color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.raw-log-content :deep(a.log-link:hover) {
   color: var(--el-color-primary-dark-2);
 }
 
