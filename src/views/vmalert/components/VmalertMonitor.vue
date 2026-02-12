@@ -611,11 +611,6 @@ const hierarchy = computed(() => {
   return prometheusStore.buildAlertHierarchy(filteredAlerts.value)
 })
 
-// Watch task changes
-watch(currentTask, (newTask) => {
-  prometheusStore.selectTask(newTask)
-})
-
 // Handle refresh
 function handleRefresh() {
   prometheusStore.refresh()

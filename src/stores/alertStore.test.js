@@ -100,6 +100,19 @@ describe('alertStore', () => {
       expect(store.hasAlert).toBe(false)
       expect(store.alertReasons).toEqual([])
     })
+
+    it('should log correctly when muted permanently', () => {
+      const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+      store.setMute(-1) // Permanent mute
+      store.triggerAlert('error')
+
+      expect(store.hasAlert).toBe(false)
+      expect(store.alertReasons).toEqual([])
+      expect(consoleLog).toHaveBeenCalledWith('Alert muted permanently')
+
+      consoleLog.mockRestore()
+    })
   })
 
   describe('dismissAlert()', () => {

@@ -145,7 +145,11 @@ export const useAlertStore = defineStore('alert', () => {
   function triggerAlert(reason) {
     // Don't show overlay if muted
     if (isMuted.value) {
-      console.log(`Alert muted until ${new Date(muteUntil.value).toLocaleTimeString()}`)
+      if (muteUntil.value === -1) {
+        console.log('Alert muted permanently')
+      } else {
+        console.log(`Alert muted until ${new Date(muteUntil.value).toLocaleTimeString()}`)
+      }
       return
     }
 
