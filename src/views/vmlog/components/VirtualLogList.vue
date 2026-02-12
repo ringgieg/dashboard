@@ -109,6 +109,7 @@ import LinkifyIt from 'linkify-it'
 import { getConfig } from '../../../utils/config'
 import { copyWithClipboardJs } from '../../../utils/clipboard'
 import { useVirtualizer } from '@tanstack/vue-virtual'
+import escapeHtml from 'escape-html'
 
 const props = defineProps({
   logs: { type: Array, required: true },
@@ -218,13 +219,6 @@ function handleScroll(event) {
 
 function formatTime(timestamp) {
   return dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss.SSS')
-}
-
-function escapeHtml(text) {
-  if (!text) return ''
-  const div = document.createElement('div')
-  div.textContent = text
-  return div.innerHTML
 }
 
 function escapeHtmlAttr(text) {
