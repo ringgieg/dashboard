@@ -19,7 +19,9 @@ vi.mock('@element-plus/icons-vue', () => ({
   Refresh: { name: 'Refresh', render: () => null },
   CircleClose: { name: 'CircleClose', render: () => null },
   FullScreen: { name: 'FullScreen', render: () => null },
-  Close: { name: 'Close', render: () => null }
+  Close: { name: 'Close', render: () => null },
+  ArrowRight: { name: 'ArrowRight', render: () => null },
+  ArrowDown: { name: 'ArrowDown', render: () => null }
 }))
 
 describe('TaskList.vue', () => {
@@ -104,6 +106,37 @@ describe('TaskList.vue', () => {
     expect(taskItems).toHaveLength(2)
     expect(taskItems[0].text()).toContain('batch-sync-task')
     expect(taskItems[1].text()).toContain('batch-upload-task')
+  })
+
+  it('should display alias configured in taskGroups and keep id for matching', () => {
+    const prevConfig = window.APP_CONFIG
+    try {
+      window.APP_CONFIG = {
+        activeService: 'batch-sync',
+        services: [
+          {
+            id: 'batch-sync',
+            taskGroups: [
+              {
+                name: 'Core',
+                tasks: [{ id: 'batch-sync-task', name: 'Batch Sync Alias' }]
+              }
+            ]
+          }
+        ]
+      }
+
+      const store = useTaskStore()
+      store.tasks = [
+        { name: 'batch-sync-task', watched: true, existsInVmLog: true }
+      ]
+
+      const wrapper = createWrapper()
+      expect(wrapper.find('.task-name').text()).toBe('Batch Sync Alias')
+      expect(wrapper.find('.task-item').text()).not.toContain('batch-sync-task')
+    } finally {
+      window.APP_CONFIG = prevConfig
+    }
   })
 
   it('should show "no tasks" message when filtered list is empty', async () => {

@@ -180,6 +180,49 @@ describe('taskStore', () => {
     })
   })
 
+  describe('groupedTasks and aliases', () => {
+    it('supports mixed tasks entries and returns task alias by id', () => {
+      const prevConfig = window.APP_CONFIG
+      try {
+        window.APP_CONFIG = {
+          activeService: 'test-service',
+          services: [
+            {
+              id: 'test-service',
+              taskGroups: [
+                {
+                  name: 'Core',
+                  tasks: [
+                    { id: 'task-1', name: 'Task One Alias' },
+                    'task-2'
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+
+        store.tasks = [
+          { name: 'task-1', watched: false, existsInVmLog: true },
+          { name: 'task-2', watched: false, existsInVmLog: true },
+          { name: 'task-3', watched: false, existsInVmLog: true }
+        ]
+
+        const groups = store.groupedTasks
+        expect(groups).toHaveLength(2)
+        expect(groups[0].name).toBe('Core')
+        expect(groups[0].items.map(t => t.name)).toEqual(['task-1', 'task-2'])
+        expect(groups[1].name).toBe('__ungrouped__')
+        expect(groups[1].items.map(t => t.name)).toEqual(['task-3'])
+
+        expect(store.getTaskDisplayName('task-1')).toBe('Task One Alias')
+        expect(store.getTaskDisplayName('task-2')).toBe('task-2')
+      } finally {
+        window.APP_CONFIG = prevConfig
+      }
+    })
+  })
+
   describe('initialize()', () => {
     it('should load watched tasks and fetch tasks from API', async () => {
       localStorage.setItem('dashboard-watched-tasks-test-service', JSON.stringify(['task-2']))

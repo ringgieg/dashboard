@@ -95,7 +95,62 @@ window.APP_CONFIG = {
       },
 
       // ========== 日志级别配置 ==========
-      logLevels: ['ERROR', 'WARN', 'INFO', 'DEBUG'] // 可选，有完整默认配?
+      logLevels: ['ERROR', 'WARN', 'INFO', 'DEBUG'],
+      // taskGroups[].tasks supports mixed entries:
+      // - 'task-id' (legacy mode)
+      // - { id: 'task-id', name: 'Task Alias' } (name shown in UI)
+      // Example (copy and adjust):
+      // taskGroups: [
+      //   {
+      //     name: 'core',
+      //     alias: 'Core Tasks',
+      //     collapsed: false,
+      //     tasks: [
+      //       { id: 'etl-daily-sync', name: 'Daily ETL Sync' },
+      //       'etl-hourly-batch',
+      //       { id: 'oauth-token-refresh', name: 'OAuth Token Refresh' }
+      //     ]
+      //   },
+      //   {
+      //     name: 'datasource',
+      //     alias: 'Data Source',
+      //     collapsed: true,
+      //     tasks: [
+      //       { id: 'datasource-check', name: 'Data Source Check' },
+      //       'datasource-init'
+      //     ]
+      //   }
+      // ]
+
+      // ========== 任务分组配置（可选）==========
+      // name:      组标识，同时作为默认显示名
+      // alias:     组的显示别名（可选，有则覆盖 name 显示）
+      // collapsed: 首次访问时默认折叠（true/false，默认 false）
+      // tasks:     属于该组的任务名称数组（精确匹配）
+      // 不在任何组 tasks 列表里的任务自动归入"其他"组
+      // 不配置或留空数组 [] 时禁用分组，恢复平铺列表
+      taskGroups: [
+        // {
+        //   name: 'ETL',
+        //   alias: 'ETL 任务',
+        //   collapsed: false,
+        //   tasks: [
+        //     { id: 'etl-daily-sync', name: 'Daily ETL Sync' },
+        //     'etl-hourly-batch'
+        //   ]
+        // },
+        // {
+        //   name: '数据源管理',
+        //   collapsed: false,
+        //   tasks: ['datasource-check', 'datasource-init']
+        // },
+        // {
+        //   name: 'OAuth',
+        //   alias: 'OAuth 认证',
+        //   collapsed: true,
+        //   tasks: ['oauth-token-refresh', 'oauth-validate']
+        // },
+      ]
     },
     {
       // ========== VMAlert 告警监控服务 ==========

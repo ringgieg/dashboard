@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getTaskNames } from '../api/vmlog'
 import { useServiceStore } from './serviceStore'
+import { getServiceConfig } from '../utils/config'
 
 const STORAGE_KEY_PREFIX = 'dashboard-watched-tasks'
 
@@ -133,6 +134,63 @@ export const useTaskStore = defineStore('task', () => {
     return unreadAlerts.value[taskName] || 0
   }
 
+  function normalizeGroupTaskEntry(entry) {
+    if (typeof entry === 'string') {
+      const id = entry.trim()
+      return id ? { id, displayName: '' } : null
+    }
+
+    if (entry && typeof entry === 'object') {
+      const id = entry.id != null ? String(entry.id).trim() : ''
+      if (!id) return null
+
+      const displayName = entry.name != null ? String(entry.name).trim() : ''
+      return { id, displayName }
+    }
+
+    return null
+  }
+
+  const normalizedTaskGroups = computed(() => {
+    const serviceStore = useServiceStore()
+    const serviceId = serviceStore.getCurrentServiceId()
+    const groups = getServiceConfig(serviceId, 'taskGroups', null)
+
+    if (!Array.isArray(groups) || groups.length === 0) return null
+
+    return groups.map(group => {
+      const normalizedTasks = Array.isArray(group.tasks)
+        ? group.tasks
+          .map(normalizeGroupTaskEntry)
+          .filter(Boolean)
+        : []
+
+      return {
+        ...group,
+        tasks: normalizedTasks
+      }
+    })
+  })
+
+  const taskDisplayNameMap = computed(() => {
+    const map = new Map()
+    if (!normalizedTaskGroups.value) return map
+
+    for (const group of normalizedTaskGroups.value) {
+      for (const task of group.tasks) {
+        if (task.displayName) {
+          map.set(task.id, task.displayName)
+        }
+      }
+    }
+
+    return map
+  })
+
+  function getTaskDisplayName(taskName) {
+    return taskDisplayNameMap.value.get(taskName) || taskName
+  }
+
   // Computed: sorted tasks (watched first, then alphabetically)
   const sortedTasks = computed(() => {
     return [...tasks.value].sort((a, b) => {
@@ -145,6 +203,39 @@ export const useTaskStore = defineStore('task', () => {
     })
   })
 
+  // Computed: grouped tasks based on taskGroups config
+  // Returns null if no groups configured (flat mode)
+  // Each group: { name, alias, collapsed, tasks: Array<{id, displayName}>, items: Task[] }
+  // Unmatched tasks are collected into a trailing '其他' group
+  const groupedTasks = computed(() => {
+    const groups = normalizedTaskGroups.value
+    if (!groups) return null
+
+    // Build a lookup: taskName -> groupIndex for O(1) matching
+    const taskGroupMap = new Map()
+    groups.forEach((g, idx) => {
+      g.tasks.forEach(task => taskGroupMap.set(task.id, idx))
+    })
+
+    const result = groups.map(g => ({ ...g, items: [] }))
+    const ungrouped = []
+
+    for (const task of sortedTasks.value) {
+      const idx = taskGroupMap.get(task.name)
+      if (idx !== undefined) {
+        result[idx].items.push(task)
+      } else {
+        ungrouped.push(task)
+      }
+    }
+
+    const filtered = result.filter(g => g.items.length > 0)
+    if (ungrouped.length > 0) {
+      filtered.push({ name: '__ungrouped__', alias: '其他', items: ungrouped })
+    }
+    return filtered
+  })
+
   return {
     // State
     tasks,
@@ -154,6 +245,7 @@ export const useTaskStore = defineStore('task', () => {
 
     // Computed
     sortedTasks,
+    groupedTasks,
 
     // Actions
     initialize,
@@ -164,6 +256,7 @@ export const useTaskStore = defineStore('task', () => {
     toggleWatched,
     incrementUnreadAlerts,
     clearUnreadAlerts,
-    getUnreadAlertCount
+    getUnreadAlertCount,
+    getTaskDisplayName
   }
 })

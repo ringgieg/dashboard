@@ -22,37 +22,100 @@
     </div>
 
     <div class="task-list-content" v-loading="store.loading">
-      <div
-        v-for="task in filteredTasks"
-        class="task-item"
-        :class="{
-          'is-selected': route.params.taskName === task.name,
-          'is-unwatched': !task.watched
-        }"
-        @click="selectTask(task.name)"
-        @contextmenu.prevent="showContextMenu($event, task)"
-      >
-        <div class="task-info">
-          <span class="task-icon" :class="getTaskIconClass(task)">●</span>
-          <span class="task-name">{{ task.name }}</span>
-          <span
-            v-if="!task.existsInVmLog"
-            class="not-in-vmlog-badge"
-            title="此任务在VMLog中暂无日志"
-          >
-            无日志
-          </span>
-          <span
-            v-if="store.getUnreadAlertCount(task.name) > 0"
-            class="unread-badge"
-            :class="{ 'is-unwatched': !task.watched }"
-          >
-            {{ store.getUnreadAlertCount(task.name) }}
-          </span>
-        </div>
-      </div>
+      <!-- 分组模式：配置了 taskGroups 且无搜索词 -->
+      <template v-if="store.groupedTasks && !searchQuery">
+        <div
+          v-for="group in store.groupedTasks"
+          :key="group.name"
+          class="task-group"
+        >
+          <!-- 分组标题行 -->
+          <div class="task-group-header" @click="toggleGroup(group.name)">
+            <el-icon class="group-toggle-icon">
+              <ArrowRight v-if="isGroupCollapsed(group.name)" />
+              <ArrowDown v-else />
+            </el-icon>
+            <span class="group-name">{{ group.alias || group.name }}</span>
+            <span class="group-count">{{ group.items.length }}</span>
+            <span
+              v-if="getGroupUnreadCount(group) > 0"
+              class="group-unread-badge"
+            >
+              {{ getGroupUnreadCount(group) }}
+            </span>
+          </div>
 
-      <div v-if="filteredTasks.length === 0" class="no-tasks">
+          <!-- 分组内任务列表 -->
+          <div v-show="!isGroupCollapsed(group.name)" class="task-group-body">
+            <div
+              v-for="task in group.items"
+              :key="task.name"
+              class="task-item task-item-grouped"
+              :class="{
+                'is-selected': route.params.taskName === task.name,
+                'is-unwatched': !task.watched
+              }"
+              @click="selectTask(task.name)"
+              @contextmenu.prevent="showContextMenu($event, task)"
+            >
+              <div class="task-info">
+                <span class="task-icon" :class="getTaskIconClass(task)">●</span>
+                <span class="task-name">{{ getTaskDisplayName(task) }}</span>
+                <span
+                  v-if="!task.existsInVmLog"
+                  class="not-in-vmlog-badge"
+                  title="此任务在VMLog中暂无日志"
+                >
+                  无日志
+                </span>
+                <span
+                  v-if="store.getUnreadAlertCount(task.name) > 0"
+                  class="unread-badge"
+                  :class="{ 'is-unwatched': !task.watched }"
+                >
+                  {{ store.getUnreadAlertCount(task.name) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- 平铺模式：无分组配置，或搜索时回退到平铺 -->
+      <template v-else>
+        <div
+          v-for="task in filteredTasks"
+          :key="task.name"
+          class="task-item"
+          :class="{
+            'is-selected': route.params.taskName === task.name,
+            'is-unwatched': !task.watched
+          }"
+          @click="selectTask(task.name)"
+          @contextmenu.prevent="showContextMenu($event, task)"
+        >
+          <div class="task-info">
+            <span class="task-icon" :class="getTaskIconClass(task)">●</span>
+            <span class="task-name">{{ getTaskDisplayName(task) }}</span>
+            <span
+              v-if="!task.existsInVmLog"
+              class="not-in-vmlog-badge"
+              title="此任务在VMLog中暂无日志"
+            >
+              无日志
+            </span>
+            <span
+              v-if="store.getUnreadAlertCount(task.name) > 0"
+              class="unread-badge"
+              :class="{ 'is-unwatched': !task.watched }"
+            >
+              {{ store.getUnreadAlertCount(task.name) }}
+            </span>
+          </div>
+        </div>
+      </template>
+
+      <div v-if="isEmpty" class="no-tasks">
         暂无任务
       </div>
     </div>
@@ -109,7 +172,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useTaskStore } from '../../../stores/taskStore'
 import { useWsStore } from '../../../stores/wsStore'
 import { useServiceStore } from '../../../stores/serviceStore'
-import { Search, Refresh, FullScreen } from '@element-plus/icons-vue'
+import { Search, Refresh, FullScreen, ArrowRight, ArrowDown } from '@element-plus/icons-vue'
 import MuteButton from '../../../components/MuteButton.vue'
 
 // Props
@@ -132,37 +195,105 @@ const contextMenuX = ref(0)
 const contextMenuY = ref(0)
 const contextMenuTask = ref(null)
 
+// 折叠状态：{ [groupMatch]: boolean }
+const collapsedGroups = ref({})
+
+// ── 分组折叠持久化 ──────────────────────────────────────────
+
+function getCollapseStorageKey() {
+  const serviceId = serviceStore.getCurrentServiceId()
+  return `task-group-collapsed-${serviceId}`
+}
+
+function loadCollapsedGroups() {
+  try {
+    const saved = localStorage.getItem(getCollapseStorageKey())
+    if (saved) {
+      collapsedGroups.value = JSON.parse(saved)
+    } else {
+      // 首次使用：应用 config 里每个组的 collapsed 默认值
+      const defaults = {}
+      if (store.groupedTasks) {
+        for (const group of store.groupedTasks) {
+          if (group.collapsed) {
+            defaults[group.name] = true
+          }
+        }
+      }
+      collapsedGroups.value = defaults
+    }
+  } catch (e) {
+    collapsedGroups.value = {}
+  }
+}
+
+function saveCollapsedGroups() {
+  try {
+    localStorage.setItem(getCollapseStorageKey(), JSON.stringify(collapsedGroups.value))
+  } catch (e) {
+    // ignore
+  }
+}
+
+function toggleGroup(groupMatch) {
+  collapsedGroups.value = {
+    ...collapsedGroups.value,
+    [groupMatch]: !collapsedGroups.value[groupMatch]
+  }
+  saveCollapsedGroups()
+}
+
+function isGroupCollapsed(groupMatch) {
+  return !!collapsedGroups.value[groupMatch]
+}
+
+function getGroupUnreadCount(group) {
+  return group.items.reduce((sum, task) => sum + store.getUnreadAlertCount(task.name), 0)
+}
+
+function getTaskDisplayName(task) {
+  return store.getTaskDisplayName(task.name)
+}
+
+// ── 任务过滤（平铺模式 / 搜索模式）────────────────────────────
+
 const filteredTasks = computed(() => {
   if (!searchQuery.value) {
     return store.sortedTasks
   }
   const query = searchQuery.value.toLowerCase()
-  return store.sortedTasks.filter(task =>
-    task.name.toLowerCase().includes(query)
-  )
+  return store.sortedTasks.filter(task => {
+    const taskIdMatch = task.name.toLowerCase().includes(query)
+    const taskAlias = store.getTaskDisplayName(task.name)
+    const taskAliasMatch = String(taskAlias).toLowerCase().includes(query)
+    return taskIdMatch || taskAliasMatch
+  })
 })
+
+const isEmpty = computed(() => {
+  if (store.groupedTasks && !searchQuery.value) {
+    return store.groupedTasks.length === 0
+  }
+  return filteredTasks.value.length === 0
+})
+
+// ── 任务状态图标 ───────────────────────────────────────────
 
 function getTaskIconClass(task) {
   if (!task.watched) {
-    // 未关注：灰色
     return 'unwatched'
   }
-
-  // 被关注时：检查告警和连接状态
   const hasUnreadAlerts = store.getUnreadAlertCount(task.name) > 0
   const isConnected = wsStore.isConnected
-
   if (hasUnreadAlerts || !isConnected) {
-    // 有告警或断开连接：红色
     return 'alert'
   }
-
-  // 无告警且已连接：绿色
   return 'connected'
 }
 
+// ── 任务操作 ───────────────────────────────────────────────
+
 function selectTask(taskName) {
-  // Clear unread alerts when entering task page
   store.clearUnreadAlerts(taskName)
   const serviceId = serviceStore.getCurrentServiceId()
   router.push(`/logs/${serviceId}/${taskName}`)
@@ -173,7 +304,6 @@ function refreshTasks() {
 }
 
 function enterKioskMode() {
-  // Add kiosk=1 query parameter
   router.push({
     path: route.path,
     query: { ...route.query, kiosk: '1' }
@@ -181,7 +311,6 @@ function enterKioskMode() {
 }
 
 function exitKioskMode() {
-  // Remove kiosk query parameter
   const query = { ...route.query }
   delete query.kiosk
   router.push({
@@ -189,6 +318,8 @@ function exitKioskMode() {
     query
   })
 }
+
+// ── 右键菜单 ───────────────────────────────────────────────
 
 function showContextMenu(event, task) {
   contextMenuX.value = event.clientX
@@ -209,7 +340,6 @@ function toggleWatched() {
   closeContextMenu()
 }
 
-// Close context menu on click outside
 function handleClickOutside() {
   if (contextMenuVisible.value) {
     closeContextMenu()
@@ -223,6 +353,7 @@ function handleKeydown(event) {
 }
 
 onMounted(() => {
+  loadCollapsedGroups()
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleKeydown)
 })
@@ -267,6 +398,79 @@ onUnmounted(() => {
   overflow-y: auto;
 }
 
+/* ── 分组样式 ─────────────────────────────────────────── */
+
+.task-group {
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.task-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-lighter);
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.task-group-header:hover {
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-primary);
+}
+
+.group-toggle-icon {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--el-text-color-placeholder);
+  transition: color 0.15s;
+}
+
+.task-group-header:hover .group-toggle-icon {
+  color: var(--el-text-color-secondary);
+}
+
+.group-name {
+  flex: 1;
+  letter-spacing: 0.02em;
+}
+
+.group-count {
+  font-size: 11px;
+  color: var(--el-text-color-placeholder);
+  font-weight: 400;
+  background: var(--el-fill-color-dark);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.group-unread-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--el-color-danger);
+  color: #fff;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.task-group-body {
+  /* no extra padding; task items handle their own */
+}
+
+/* ── 任务条目 ─────────────────────────────────────────── */
+
 .task-item {
   display: flex;
   align-items: center;
@@ -278,6 +482,11 @@ onUnmounted(() => {
   transition: all 0.15s ease;
 }
 
+/* 分组内的任务略微缩进，与分组标题区分 */
+.task-item-grouped {
+  padding-left: 28px;
+}
+
 .task-item:hover {
   background: var(--el-fill-color-lighter);
 }
@@ -286,6 +495,11 @@ onUnmounted(() => {
   background: var(--el-color-primary-light-8);
   border-left: 3px solid var(--el-color-primary);
   padding-left: 13px;
+}
+
+/* 分组模式下选中项缩进补偿 */
+.task-item-grouped.is-selected {
+  padding-left: 25px;
 }
 
 .task-item.is-unwatched {
@@ -319,12 +533,8 @@ onUnmounted(() => {
 }
 
 @keyframes pulse-icon {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .task-name {
@@ -377,6 +587,8 @@ onUnmounted(() => {
   color: var(--el-bg-color);
 }
 
+/* ── 底部 ─────────────────────────────────────────────── */
+
 .no-tasks {
   padding: 48px 20px;
   text-align: center;
@@ -415,7 +627,8 @@ onUnmounted(() => {
   color: var(--el-color-white);
 }
 
-/* Context Menu */
+/* ── 右键菜单 ─────────────────────────────────────────── */
+
 .context-menu-overlay {
   position: fixed;
   top: 0;
