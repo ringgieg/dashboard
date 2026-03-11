@@ -45,3 +45,11 @@ coverage/
 
 # Docker volumes
 loki-data/
+
+# Go cache (in case local tooling generates these under dashboard/)
+.gocache/
+.gocache_build/
+.gocache_mod/
+.gomodcache/
+gocache_build/
+gocache_mod/
