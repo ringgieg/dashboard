@@ -17,10 +17,12 @@
           style="width: 100px"
         >
           <el-option label="ALL" value="" />
-          <el-option label="ERROR" value="ERROR" />
-          <el-option label="WARN" value="WARN" />
-          <el-option label="INFO" value="INFO" />
-          <el-option label="DEBUG" value="DEBUG" />
+          <el-option
+            v-for="lvl in availableLevels"
+            :key="lvl"
+            :label="lvl"
+            :value="lvl"
+          />
         </el-select>
 
         <el-button
@@ -89,7 +91,7 @@ import { Loading, Lock, VideoPlay, Download } from '@element-plus/icons-vue'
 import { queryTaskLogs, filterLogsByLevel } from '../../../api/vmlog'
 import { useWsStore } from '../../../stores/wsStore'
 import { useTaskStore } from '../../../stores/taskStore'
-import { getCurrentServiceConfig } from '../../../utils/config'
+import { getCurrentServiceConfig, getLogLevelOrder } from '../../../utils/config'
 import VirtualLogList from './VirtualLogList.vue'
 
 const route = useRoute()
@@ -97,6 +99,7 @@ const wsStore = useWsStore()
 const taskStore = useTaskStore()
 
 const currentTask = computed(() => route.params.taskName || null)
+const availableLevels = computed(() => getLogLevelOrder())
 
 const logs = ref([])
 const loading = ref(false)

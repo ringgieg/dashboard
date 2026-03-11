@@ -17,7 +17,7 @@
         :ref="el => setRowRef(el)"
         class="log-entry"
         :class="[
-          'level-' + (item.log.level || 'info').toLowerCase(),
+          'level-' + (item.log.level || 'unknown').toLowerCase(),
           { 'is-expanded': isExpanded(item.log.id) }
         ]"
         :data-index="item.virtualRow.index"
@@ -33,8 +33,8 @@
         <div class="log-header">
           <div class="log-meta">
             <span class="log-time">{{ formatTime(item.log.timestamp) }}</span>
-            <span class="log-level" :class="'level-' + (item.log.level || 'info').toLowerCase()">
-              {{ item.log.level || 'INFO' }}
+            <span class="log-level" :class="'level-' + (item.log.level || 'unknown').toLowerCase()">
+              {{ item.log.level || 'UNKNOWN' }}
             </span>
             <span v-if="item.log.isNew" class="new-tag">NEW</span>
           </div>
@@ -486,6 +486,11 @@ async function copyRawLog(text) {
   user-select: none;
 }
 
+.log-entry.level-critical {
+  border-left-color: #7c1fa1;
+  background: #f5e8fb;
+}
+
 .log-entry.level-error {
   border-left-color: var(--el-color-danger);
   background: var(--el-color-danger-light-8);
@@ -498,6 +503,16 @@ async function copyRawLog(text) {
 
 .log-entry.level-debug {
   border-left-color: var(--el-text-color-secondary);
+}
+
+.log-entry.level-trace {
+  border-left-color: var(--el-border-color-light);
+  background: var(--el-fill-color-lighter);
+}
+
+.log-entry.level-unknown {
+  border-left-color: var(--el-color-info);
+  background: var(--el-color-info-light-8);
 }
 
 .log-meta {
@@ -542,6 +557,11 @@ async function copyRawLog(text) {
   letter-spacing: 0.025em;
 }
 
+.log-level.level-critical {
+  background: #f0d6fa;
+  color: #5a1270;
+}
+
 .log-level.level-error {
   background: var(--el-color-danger-light-8);
   color: var(--el-color-danger-dark-2);
@@ -555,6 +575,16 @@ async function copyRawLog(text) {
 .log-level.level-debug {
   background: var(--el-fill-color-light);
   color: var(--el-text-color-regular);
+}
+
+.log-level.level-trace {
+  background: var(--el-fill-color-lighter);
+  color: var(--el-text-color-placeholder);
+}
+
+.log-level.level-unknown {
+  background: var(--el-color-info-light-8);
+  color: var(--el-color-info);
 }
 
 .new-tag {

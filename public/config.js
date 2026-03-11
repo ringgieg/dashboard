@@ -95,7 +95,7 @@ window.APP_CONFIG = {
       },
 
       // ========== 日志级别配置 ==========
-      logLevels: ['ERROR', 'WARN', 'INFO', 'DEBUG'],
+      logLevels: ['CRITICAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE', 'UNKNOWN'],
       // taskGroups[].tasks supports mixed entries:
       // - 'task-id' (legacy mode)
       // - { id: 'task-id', name: 'Task Alias' } (name shown in UI)

@@ -387,7 +387,7 @@ function normalizeLogSqlRow(row) {
   if (row && row.level != null) labels.level = String(row.level)
   if (row && row.job != null) labels.job = String(row.job)
 
-  const level = (labels.level || String(row?.level || '') || extractLevel(line) || 'INFO').toUpperCase()
+  const level = (labels.level || String(row?.level || '') || extractLevel(line) || 'UNKNOWN').toUpperCase()
 
   return {
     id: `${timestampNano}-${++logIdCounter}`,
@@ -544,7 +544,7 @@ export function filterLogsByLevel(logs, level) {
   const allowedLevels = levelOrder.slice(0, selectedIndex + 1)
 
   return logs.filter(log => {
-    const logLevel = (log.level || 'INFO').toUpperCase()
+    const logLevel = (log.level || 'UNKNOWN').toUpperCase()
     return allowedLevels.includes(logLevel)
   })
 }

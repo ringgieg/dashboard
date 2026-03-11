@@ -64,7 +64,7 @@ const defaultConfig = {
       query: {
         defaultTimeRangeDays: 7
       },
-      logLevels: ['ERROR', 'WARN', 'INFO', 'DEBUG']
+      logLevels: ['CRITICAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE', 'UNKNOWN']
     }
   ],
   virtualScroll: {
@@ -378,7 +378,7 @@ export function getPrometheusAlertLevel() {
  * Get log level order for current service
  * @returns {Array<string>} Log level order (e.g., ['ERROR', 'WARN', 'INFO', 'DEBUG'])
  */
-const DEFAULT_LOG_LEVEL_ORDER = ['ERROR', 'WARN', 'INFO', 'DEBUG']
+const DEFAULT_LOG_LEVEL_ORDER = ['CRITICAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE', 'UNKNOWN']
 
 function buildLogLevelMappingFromOrder(order) {
   const normalizedOrder = Array.isArray(order) && order.length > 0
