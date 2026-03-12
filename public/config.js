@@ -96,37 +96,21 @@ window.APP_CONFIG = {
 
       // ========== 日志级别配置 ==========
       logLevels: ['CRITICAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE', 'UNKNOWN'],
-      // taskGroups[].tasks supports mixed entries:
-      // - 'task-id' (legacy mode)
-      // - { id: 'task-id', name: 'Task Alias' } (name shown in UI)
-      // Example (copy and adjust):
-      // taskGroups: [
-      //   {
-      //     name: 'core',
-      //     alias: 'Core Tasks',
-      //     collapsed: false,
-      //     tasks: [
-      //       { id: 'etl-daily-sync', name: 'Daily ETL Sync' },
-      //       'etl-hourly-batch',
-      //       { id: 'oauth-token-refresh', name: 'OAuth Token Refresh' }
-      //     ]
-      //   },
-      //   {
-      //     name: 'datasource',
-      //     alias: 'Data Source',
-      //     collapsed: true,
-      //     tasks: [
-      //       { id: 'datasource-check', name: 'Data Source Check' },
-      //       'datasource-init'
-      //     ]
-      //   }
-      // ]
+
+      // ========== 任务别名配置（可选）==========
+      // 独立于分组的任务显示名映射：{ taskId: '显示别名' }
+      // 未配置别名的任务显示原始 taskId
+      taskAlias: {
+        // 'etl-daily-sync': 'Daily ETL Sync',
+        // 'oauth-token-refresh': 'OAuth Token Refresh',
+        // 'datasource-check': '数据源检查'
+      },
 
       // ========== 任务分组配置（可选）==========
       // name:      组标识，同时作为默认显示名
       // alias:     组的显示别名（可选，有则覆盖 name 显示）
       // collapsed: 首次访问时默认折叠（true/false，默认 false）
-      // tasks:     属于该组的任务名称数组（精确匹配）
+      // tasks:     属于该组的任务 ID 字符串数组（精确匹配）
       // 不在任何组 tasks 列表里的任务自动归入"其他"组
       // 不配置或留空数组 [] 时禁用分组，恢复平铺列表
       taskGroups: [
@@ -134,10 +118,7 @@ window.APP_CONFIG = {
         //   name: 'ETL',
         //   alias: 'ETL 任务',
         //   collapsed: false,
-        //   tasks: [
-        //     { id: 'etl-daily-sync', name: 'Daily ETL Sync' },
-        //     'etl-hourly-batch'
-        //   ]
+        //   tasks: ['etl-daily-sync', 'etl-hourly-batch']
         // },
         // {
         //   name: '数据源管理',

@@ -137,15 +137,7 @@ export const useTaskStore = defineStore('task', () => {
   function normalizeGroupTaskEntry(entry) {
     if (typeof entry === 'string') {
       const id = entry.trim()
-      return id ? { id, displayName: '' } : null
-    }
-
-    if (entry && typeof entry === 'object') {
-      const id = entry.id != null ? String(entry.id).trim() : ''
-      if (!id) return null
-
-      const displayName = entry.name != null ? String(entry.name).trim() : ''
-      return { id, displayName }
+      return id || null
     }
 
     return null
@@ -173,17 +165,20 @@ export const useTaskStore = defineStore('task', () => {
   })
 
   const taskDisplayNameMap = computed(() => {
-    const map = new Map()
-    if (!normalizedTaskGroups.value) return map
+    const serviceStore = useServiceStore()
+    const serviceId = serviceStore.getCurrentServiceId()
+    const aliasConfig = getServiceConfig(serviceId, 'taskAlias', null)
 
-    for (const group of normalizedTaskGroups.value) {
-      for (const task of group.tasks) {
-        if (task.displayName) {
-          map.set(task.id, task.displayName)
-        }
+    if (!aliasConfig || typeof aliasConfig !== 'object') return new Map()
+
+    const map = new Map()
+    for (const [id, alias] of Object.entries(aliasConfig)) {
+      const trimmedId = id.trim()
+      const trimmedAlias = typeof alias === 'string' ? alias.trim() : ''
+      if (trimmedId && trimmedAlias) {
+        map.set(trimmedId, trimmedAlias)
       }
     }
-
     return map
   })
 
@@ -205,7 +200,7 @@ export const useTaskStore = defineStore('task', () => {
 
   // Computed: grouped tasks based on taskGroups config
   // Returns null if no groups configured (flat mode)
-  // Each group: { name, alias, collapsed, tasks: Array<{id, displayName}>, items: Task[] }
+  // Each group: { name, alias, collapsed, tasks: string[], items: Task[] }
   // Unmatched tasks are collected into a trailing '其他' group
   const groupedTasks = computed(() => {
     const groups = normalizedTaskGroups.value
@@ -214,7 +209,7 @@ export const useTaskStore = defineStore('task', () => {
     // Build a lookup: taskName -> groupIndex for O(1) matching
     const taskGroupMap = new Map()
     groups.forEach((g, idx) => {
-      g.tasks.forEach(task => taskGroupMap.set(task.id, idx))
+      g.tasks.forEach(taskId => taskGroupMap.set(taskId, idx))
     })
 
     const result = groups.map(g => ({ ...g, items: [] }))

@@ -180,8 +180,8 @@ describe('taskStore', () => {
     })
   })
 
-  describe('groupedTasks and aliases', () => {
-    it('supports mixed tasks entries and returns task alias by id', () => {
+  describe('groupedTasks', () => {
+    it('groups tasks by string id and collects ungrouped into 其他', () => {
       const prevConfig = window.APP_CONFIG
       try {
         window.APP_CONFIG = {
@@ -192,10 +192,7 @@ describe('taskStore', () => {
               taskGroups: [
                 {
                   name: 'Core',
-                  tasks: [
-                    { id: 'task-1', name: 'Task One Alias' },
-                    'task-2'
-                  ]
+                  tasks: ['task-1', 'task-2']
                 }
               ]
             }
@@ -214,9 +211,33 @@ describe('taskStore', () => {
         expect(groups[0].items.map(t => t.name)).toEqual(['task-1', 'task-2'])
         expect(groups[1].name).toBe('__ungrouped__')
         expect(groups[1].items.map(t => t.name)).toEqual(['task-3'])
+      } finally {
+        window.APP_CONFIG = prevConfig
+      }
+    })
+  })
+
+  describe('taskAlias', () => {
+    it('returns alias from taskAlias config', () => {
+      const prevConfig = window.APP_CONFIG
+      try {
+        window.APP_CONFIG = {
+          activeService: 'test-service',
+          services: [
+            {
+              id: 'test-service',
+              taskAlias: {
+                'task-1': 'Task One Alias',
+                'task-3': 'Task Three Alias'
+              },
+              taskGroups: []
+            }
+          ]
+        }
 
         expect(store.getTaskDisplayName('task-1')).toBe('Task One Alias')
         expect(store.getTaskDisplayName('task-2')).toBe('task-2')
+        expect(store.getTaskDisplayName('task-3')).toBe('Task Three Alias')
       } finally {
         window.APP_CONFIG = prevConfig
       }
