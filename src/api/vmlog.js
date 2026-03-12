@@ -581,7 +581,7 @@ export function filterLogsByLevel(logs, level) {
   const allowedLevels = levelOrder.slice(0, selectedIndex + 1)
 
   return logs.filter(log => {
-    const logLevel = (log.level || 'UNKNOWN').toUpperCase()
+    const logLevel = (log.level || 'INFO').toUpperCase()
     return allowedLevels.includes(logLevel)
   })
 }

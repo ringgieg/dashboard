@@ -114,7 +114,7 @@ export const useWsStore = defineStore('ws', () => {
         for (const log of logs) {
           const taskName = resolveTaskName(log, taskLabel)
 
-          const level = String(log.level || 'UNKNOWN').toUpperCase()
+          const level = String(log.level || 'INFO').toUpperCase()
           const isViewing = taskName && viewingTask && taskName === viewingTask
           const hasTaskSubscribers = taskName && subscribers.has(taskName)
           const shouldDistribute = isViewing || hasTaskSubscribers || globalSubscribers.size > 0

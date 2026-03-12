@@ -27,7 +27,8 @@ vi.mock('../../../utils/config', () => ({
       'logsPerPage': 500
     }
     return config[key] !== undefined ? config[key] : fallback
-  })
+  }),
+  getLogLevelOrder: vi.fn(() => ['CRITICAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE', 'UNKNOWN'])
 }))
 
 // Mock VirtualLogList
