@@ -58,8 +58,9 @@ window.APP_CONFIG = {
         // 查询标签（必需）
         // fixedLabels 支持两种格式：
         // 1) 兼容旧格式：对象 map（等价于每个 key 做 = 匹配）
-        // 2) 规则数组：[{ key, in, notIn, inRegex, notRegex }]，用于“查询级别抑制/过滤”（不做 message 内容过滤）
-        //    - in / notIn: 数组（1 个值生成 =/!=；多个值生成正则 =~/!~）
+        // 2) 规则数组：[{ key, in, notIn, inRegex, notRegex }]，用于”查询级别抑制/过滤”（不做 message 内容过滤）
+        //    - in / inRegex: 正向匹配，放入 stream selector（要求标签存在）
+        //    - notIn / notRegex: 负向排除，生成 LogsQL field filter（包含标签不存在的日志）
         //    - inRegex / notRegex: 字符串正则（注意 JS 字符串里反斜杠要写成 \\）
         fixedLabels: {
           job: 'tasks',

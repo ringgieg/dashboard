@@ -310,7 +310,7 @@ describe('vmlog.js', () => {
       await getTaskNames()
 
       const body = axios.post.mock.calls[0][1]
-      expect(body.get('query')).toBe('{service="Batch-Sync", host!="bad-host"}')
+      expect(body.get('query')).toBe('{service="Batch-Sync"} !host:exact("bad-host")')
     })
   })
 
@@ -396,17 +396,16 @@ describe('vmlog.js', () => {
       ]
 
       const query = buildTaskQuery(null)
-      expect(query).toBe('{host!="bad-host"}')
+      expect(query).toBe('{} !host:exact("bad-host")')
     })
 
-    it('should support fixedLabels rules as an array (notIn multiple -> regex)', () => {
+    it('should support fixedLabels rules as an array (notIn multiple)', () => {
       window.APP_CONFIG.services[0].vmlog.fixedLabels = [
         { key: 'host', notIn: ['bad-host', 'worse.host'] }
       ]
 
       const query = buildTaskQuery(null)
-      // dots should be escaped in the regex alternative
-      expect(query).toBe('{host!~"^(?:bad-host|worse\\.host)$"}')
+      expect(query).toBe('{} !host:in("bad-host","worse.host")')
     })
 
     it('should support inRegex and notRegex matchers', () => {
@@ -417,7 +416,7 @@ describe('vmlog.js', () => {
       window.APP_CONFIG.services[0].vmlog.taskLabel = 'task_name'
 
       const query = buildTaskQuery(null)
-      expect(query).toBe('{task_name=~"^(api|batch).*", filename!~".*\\\\.gz$"}')
+      expect(query).toBe('{task_name=~"^(api|batch).*"} !filename:re(".*\\\\.gz$")')
     })
 
     it('should trim rule keys (array format) and ignore whitespace-only keys', () => {
@@ -449,7 +448,7 @@ describe('vmlog.js', () => {
       ]
 
       const query = buildTaskQuery(null)
-      expect(query).toBe('{msg=~"^a\\"b$", num!~".*\\\\d+.*"}')
+      expect(query).toBe('{msg=~"^a\\"b$"} !num:re(".*\\\\d+.*")')
     })
 
     it('should ignore invalid/empty rules and keep valid ones', () => {
@@ -584,11 +583,45 @@ describe('vmlog.js', () => {
       const query = buildTaskQuery('my-task')
       expect(query).toBe('{service="Batch-Sync", task_name="my-task"}')
     })
+
+    it('should separate positive stream matchers and negative filters', () => {
+      window.APP_CONFIG.services[0].vmlog.fixedLabels = [
+        { key: 'service', in: ['Batch-Sync'] },
+        { key: 'host', notIn: ['bad-host'] },
+        { key: 'env', in: ['prod'] },
+        { key: 'filename', notRegex: '.*\\.gz$' }
+      ]
+
+      const query = buildTaskQuery(null)
+      expect(query).toBe('{service="Batch-Sync", env="prod"} !host:exact("bad-host") !filename:re(".*\\\\.gz$")')
+    })
+
+    it('should produce only negative filters when no positive rules exist', () => {
+      window.APP_CONFIG.services[0].vmlog.fixedLabels = [
+        { key: 'host', notIn: ['a', 'b'] },
+        { key: 'file', notRegex: '.*tmp.*' }
+      ]
+
+      const query = buildTaskQuery(null)
+      expect(query).toBe('{} !host:in("a","b") !file:re(".*tmp.*")')
+    })
+
+    it('should append negative filters with taskName', () => {
+      window.APP_CONFIG.services[0].vmlog.fixedLabels = [
+        { key: 'service', in: ['Batch-Sync'] },
+        { key: 'host', notIn: ['dev'] }
+      ]
+      window.APP_CONFIG.services[0].vmlog.taskLabel = 'task_name'
+
+      const query = buildTaskQuery('my-task')
+      expect(query).toBe('{service="Batch-Sync", task_name="my-task"} !host:exact("dev")')
+    })
   })
 
   describe('fixedLabels helpers (__test__)', () => {
     const {
       fixedLabelRuleToMatcher,
+      fixedLabelRuleToNegativeFilter,
       getFixedLabelKeys,
       escapeRegexLiteral,
       escapeLabelValue,
@@ -602,43 +635,110 @@ describe('vmlog.js', () => {
       expect(fixedLabelRuleToMatcher({ key: '  ' })).toBe(null)
     })
 
-    it('fixedLabelRuleToMatcher() should apply priority: notIn > in > notRegex > inRegex', () => {
-      expect(
-        fixedLabelRuleToMatcher({ key: 'x', notIn: ['a'], in: ['b'] })
-      ).toBe('x!="a"')
+    it('fixedLabelRuleToMatcher() should return null for negative rules (notIn, notRegex)', () => {
+      // notIn with valid values → null (handled by negative filter)
+      expect(fixedLabelRuleToMatcher({ key: 'x', notIn: ['a'] })).toBe(null)
+      expect(fixedLabelRuleToMatcher({ key: 'x', notIn: ['a', 'b'] })).toBe(null)
 
-      expect(
-        fixedLabelRuleToMatcher({ key: 'x', notRegex: 'a', inRegex: 'b' })
-      ).toBe('x!~"a"')
+      // notRegex → null
+      expect(fixedLabelRuleToMatcher({ key: 'x', notRegex: 'pat' })).toBe(null)
 
-      expect(
-        fixedLabelRuleToMatcher({
-          key: 'x',
-          notIn: ['a'],
-          in: ['b'],
-          notRegex: 'c',
-          inRegex: 'd'
-        })
-      ).toBe('x!="a"')
+      // notIn takes priority over in → null
+      expect(fixedLabelRuleToMatcher({ key: 'x', notIn: ['a'], in: ['b'] })).toBe(null)
+
+      // notRegex takes priority over inRegex → null
+      expect(fixedLabelRuleToMatcher({ key: 'x', notRegex: 'a', inRegex: 'b' })).toBe(null)
+
+      // all four set → notIn wins → null
+      expect(fixedLabelRuleToMatcher({
+        key: 'x', notIn: ['a'], in: ['b'], notRegex: 'c', inRegex: 'd'
+      })).toBe(null)
     })
 
-    it('fixedLabelRuleToMatcher() should filter empty/whitespace values in in/notIn arrays', () => {
-      expect(
-        fixedLabelRuleToMatcher({ key: 'x', in: ['', 'valid'] })
-      ).toBe('x="valid"')
+    it('fixedLabelRuleToMatcher() should handle positive rules (in, inRegex)', () => {
+      expect(fixedLabelRuleToMatcher({ key: 'x', in: ['', 'valid'] })).toBe('x="valid"')
+      expect(fixedLabelRuleToMatcher({ key: 'x', in: ['', '  '] })).toBe(null)
+      expect(fixedLabelRuleToMatcher({ key: 'x', inRegex: '^test$' })).toBe('x=~"^test$"')
+    })
 
-      expect(
-        fixedLabelRuleToMatcher({ key: 'x', in: ['', '  '] })
-      ).toBe(null)
-
-      expect(
-        fixedLabelRuleToMatcher({ key: 'x', notIn: ['  ', 'bad'] })
-      ).toBe('x!="bad"')
+    it('fixedLabelRuleToMatcher() should skip notIn with empty values and fall through to in', () => {
+      // notIn has no valid values → fall through to in
+      expect(fixedLabelRuleToMatcher({ key: 'x', notIn: ['', '  '], in: ['good'] })).toBe('x="good"')
     })
 
     it('fixedLabelRuleToMatcher() should ignore blank inRegex/notRegex', () => {
       expect(fixedLabelRuleToMatcher({ key: 'x', inRegex: '  ' })).toBe(null)
-      expect(fixedLabelRuleToMatcher({ key: 'x', notRegex: '' })).toBe(null)
+      // blank notRegex → fall through, blank inRegex → null
+      expect(fixedLabelRuleToMatcher({ key: 'x', notRegex: '', inRegex: '  ' })).toBe(null)
+    })
+
+    // ── fixedLabelRuleToNegativeFilter ──────────────────────────────
+
+    it('fixedLabelRuleToNegativeFilter() should return null for null/undefined/positive rules', () => {
+      expect(fixedLabelRuleToNegativeFilter(null)).toBe(null)
+      expect(fixedLabelRuleToNegativeFilter(undefined)).toBe(null)
+      expect(fixedLabelRuleToNegativeFilter({})).toBe(null)
+      expect(fixedLabelRuleToNegativeFilter({ key: '  ' })).toBe(null)
+      expect(fixedLabelRuleToNegativeFilter({ key: 'x', in: ['a'] })).toBe(null)
+      expect(fixedLabelRuleToNegativeFilter({ key: 'x', inRegex: '^a$' })).toBe(null)
+    })
+
+    it('fixedLabelRuleToNegativeFilter() notIn single value', () => {
+      expect(
+        fixedLabelRuleToNegativeFilter({ key: 'host', notIn: ['bad-host'] })
+      ).toBe('!host:exact("bad-host")')
+    })
+
+    it('fixedLabelRuleToNegativeFilter() notIn multiple values', () => {
+      expect(
+        fixedLabelRuleToNegativeFilter({ key: 'host', notIn: ['a', 'b'] })
+      ).toBe('!host:in("a","b")')
+    })
+
+    it('fixedLabelRuleToNegativeFilter() notRegex', () => {
+      expect(
+        fixedLabelRuleToNegativeFilter({ key: 'file', notRegex: '.*\\.gz$' })
+      ).toBe('!file:re(".*\\\\.gz$")')
+    })
+
+    it('fixedLabelRuleToNegativeFilter() should filter empty/whitespace values in notIn', () => {
+      expect(
+        fixedLabelRuleToNegativeFilter({ key: 'x', notIn: ['  ', 'bad'] })
+      ).toBe('!x:exact("bad")')
+
+      // all empty → null
+      expect(
+        fixedLabelRuleToNegativeFilter({ key: 'x', notIn: ['', '  '] })
+      ).toBe(null)
+    })
+
+    it('fixedLabelRuleToNegativeFilter() should ignore blank notRegex', () => {
+      expect(fixedLabelRuleToNegativeFilter({ key: 'x', notRegex: '' })).toBe(null)
+      expect(fixedLabelRuleToNegativeFilter({ key: 'x', notRegex: '  ' })).toBe(null)
+    })
+
+    it('fixedLabelRuleToNegativeFilter() notIn takes priority over notRegex', () => {
+      expect(
+        fixedLabelRuleToNegativeFilter({ key: 'x', notIn: ['a'], notRegex: 'b' })
+      ).toBe('!x:exact("a")')
+    })
+
+    it('fixedLabelRuleToNegativeFilter() should escape quotes and backslashes', () => {
+      expect(
+        fixedLabelRuleToNegativeFilter({ key: 'x', notIn: ['a"b'] })
+      ).toBe('!x:exact("a\\"b")')
+
+      expect(
+        fixedLabelRuleToNegativeFilter({ key: 'x', notIn: ['c\\d'] })
+      ).toBe('!x:exact("c\\\\d")')
+
+      expect(
+        fixedLabelRuleToNegativeFilter({ key: 'x', notIn: ['a"b', 'c\\d'] })
+      ).toBe('!x:in("a\\"b","c\\\\d")')
+
+      expect(
+        fixedLabelRuleToNegativeFilter({ key: 'x', notRegex: '^a"b$' })
+      ).toBe('!x:re("^a\\"b$")')
     })
 
     it('fixedLabelRuleToMatcher() behavior for special-character key', () => {
@@ -742,6 +842,15 @@ describe('vmlog.js', () => {
       window.APP_CONFIG.services[0].vmlog.fixedLabels = { service: 'Batch-Sync' }
       expect(__test__.buildTaskMessageFallbackQuery('')).toBe('{service="Batch-Sync"}')
       expect(__test__.buildTaskMessageFallbackQuery(null)).toBe('{service="Batch-Sync"}')
+    })
+
+    it('should combine negative filters with _msg fallback filter', () => {
+      window.APP_CONFIG.services[0].vmlog.fixedLabels = [
+        { key: 'service', in: ['Batch-Sync'] },
+        { key: 'host', notIn: ['bad'] }
+      ]
+      const q = __test__.buildTaskMessageFallbackQuery('my-task')
+      expect(q).toBe('{service="Batch-Sync"} !host:exact("bad") _msg:"my-task"')
     })
   })
 

@@ -304,28 +304,24 @@ function getFixedLabelKeys(fixedLabels) {
   return rules.map(r => r.key).filter(Boolean)
 }
 
+function normalizeStringList(list) {
+  if (!Array.isArray(list)) return []
+  return list
+    .map(v => String(v).trim())
+    .filter(v => v.length > 0)
+}
+
+// Generates stream selector matchers for POSITIVE rules only (in, inRegex).
+// Negative rules (notIn, notRegex) return null — handled by fixedLabelRuleToNegativeFilter.
 function fixedLabelRuleToMatcher(rule) {
   const key = String(rule?.key || '').trim()
   if (!key) return null
 
-  const normalizeStringList = (list) => {
-    if (!Array.isArray(list)) return []
-    return list
-      .map(v => String(v).trim())
-      .filter(v => v.length > 0)
-  }
-
-  // Priority: notIn, in, notRegex, inRegex
-  // (notRegex before inRegex so a rule can't accidentally be broadened if multiple fields are set)
+  // Priority: notIn > in > notRegex > inRegex
+  // notIn present with valid values → skip (handled as negative filter)
   if (Array.isArray(rule.notIn)) {
     const values = normalizeStringList(rule.notIn)
-    if (values.length === 1) {
-      return `${key}!="${escapeLabelValue(values[0])}"`
-    }
-    if (values.length > 1) {
-      const re = `^(?:${values.map(escapeRegexLiteral).join('|')})$`
-      return `${key}!~"${re}"`
-    }
+    if (values.length > 0) return null
   }
 
   if (Array.isArray(rule.in)) {
@@ -339,15 +335,48 @@ function fixedLabelRuleToMatcher(rule) {
     }
   }
 
+  // notRegex present with valid value → skip (handled as negative filter)
   if (typeof rule.notRegex === 'string' && rule.notRegex.trim()) {
-    // Escape as a quoted selector string (backslashes must survive JS + query parsing).
-    return `${key}!~"${escapeLabelValue(rule.notRegex.trim())}"`
+    return null
   }
 
   if (typeof rule.inRegex === 'string' && rule.inRegex.trim()) {
     return `${key}=~"${escapeLabelValue(rule.inRegex.trim())}"`
   }
 
+  return null
+}
+
+// Generates LogsQL post-filters for NEGATIVE rules (notIn, notRegex).
+// Uses field-level filters so logs without the label are included (null-inclusive).
+// Syntax: !key:exact("v"), !key:in("v1","v2"), !key:re("pattern")
+function fixedLabelRuleToNegativeFilter(rule) {
+  const key = String(rule?.key || '').trim()
+  if (!key) return null
+
+  // Same priority: notIn > in > notRegex > inRegex
+  if (Array.isArray(rule.notIn)) {
+    const values = normalizeStringList(rule.notIn)
+    if (values.length === 1) {
+      return `!${key}:exact("${escapeLabelValue(values[0])}")`
+    }
+    if (values.length > 1) {
+      const quoted = values.map(v => `"${escapeLabelValue(v)}"`).join(',')
+      return `!${key}:in(${quoted})`
+    }
+  }
+
+  // in is positive → already handled by fixedLabelRuleToMatcher
+  if (Array.isArray(rule.in)) {
+    const values = normalizeStringList(rule.in)
+    if (values.length > 0) return null
+  }
+
+  if (typeof rule.notRegex === 'string' && rule.notRegex.trim()) {
+    return `!${key}:re("${escapeLabelValue(rule.notRegex.trim())}")`
+  }
+
+  // inRegex is positive → already handled by fixedLabelRuleToMatcher
   return null
 }
 
@@ -358,6 +387,7 @@ export const __test__ = {
   normalizeFixedLabelRules,
   getFixedLabelKeys,
   fixedLabelRuleToMatcher,
+  fixedLabelRuleToNegativeFilter,
   normalizeLogSqlRow,
   buildTaskMessageFallbackQuery
 }
@@ -465,8 +495,9 @@ export function buildTaskQuery(taskName, options = {}) {
 
   const rules = normalizeFixedLabelRules(fixedLabels)
 
-  // Build label selectors
+  // Build stream selectors (positive) and post-filters (negative, null-inclusive)
   const matchers = []
+  const filters = []
 
   // Add fixed label rules, but avoid duplicating taskLabel if taskName is provided.
   for (const rule of rules) {
@@ -476,7 +507,10 @@ export function buildTaskQuery(taskName, options = {}) {
     if (taskName && key === taskLabel) continue
 
     const matcher = fixedLabelRuleToMatcher(rule)
-    if (matcher) matchers.push(matcher)
+    if (matcher) { matchers.push(matcher); continue }
+
+    const filter = fixedLabelRuleToNegativeFilter(rule)
+    if (filter) filters.push(filter)
   }
 
   // Add task name filter if specified
@@ -484,7 +518,10 @@ export function buildTaskQuery(taskName, options = {}) {
     matchers.push(`${taskLabel}="${escapeLabelValue(taskName)}"`)
   }
 
-  return `{${matchers.join(', ')}}`
+  const streamSelector = `{${matchers.join(', ')}}`
+  return filters.length > 0
+    ? `${streamSelector} ${filters.join(' ')}`
+    : streamSelector
 }
 
 function buildTaskMessageFallbackQuery(taskName) {
